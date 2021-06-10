@@ -1,6 +1,7 @@
 from PID import PID
 import pioneer_sdk
 import time
+import math
 
 
 class RcWrapper(pioneer_sdk.Pioneer):
@@ -40,22 +41,6 @@ class RcWrapper(pioneer_sdk.Pioneer):
 
 class AttackStrategy(RcWrapper):
 
-	P_VERTICAL_PID = 1
-	I_VERTICAL_PID = 0.1
-	D_VERTICAL_PID = 0.05
-
-	P_HORIZONTAL_PID = 1
-	I_HORIZONTAN_PID = 0.1
-	D_HORIZONTAL_PID = 0.05
-
-	SETPOINT = 0  # We want error be equal zero
-
-	PREMATURE_RAD_THRESHOLD = 10  # Preliminary action threshold. If we lost a target, but reached the minimum threshold, we perform
-	TARGET_RAD_THRESHOLD = 10  # The desired action threshold
-
-	PREMATURE_PX_THRESHOLD = 10  # Preliminary action threshold. If we lost a target, but reached the minimum threshold, we perform
-	TARGET_PX_THRESHOLD = 10  # The desired action threshold
-
 	def __init__(self, pid_vertical: PID, pid_horizontal: PID):
 		RcWrapper.__init__(self)
 		self.pid_vertical = pid_vertical
@@ -77,13 +62,13 @@ class AttackStrategy(RcWrapper):
 		"""
 		raise NotImplemented
 
-	def get_normalized_output_horizontal(self, offset_horizontal_suggested):
+	def get_normalized_output_horizontal(self, offset_horizontal_control):
 		"""
 		Should use self.last_offset_horizontal
 		"""
 		raise NotImplemented
 
-	def get_normalized_output_vertical(self, offset_vertical_suggested):
+	def get_normalized_output_vertical(self, offset_vertical_control):
 		"""
 		Should use self.last_offset_vertical
 		"""
@@ -93,6 +78,7 @@ class AttackStrategy(RcWrapper):
 		# Update the values
 		self.last_offset_horizontal = offset_horizontal
 		self.last_offset_vertical = offset_vertical
+		self.target_lost = False
 
 		delta_time_seconds = self.last_time_seconds
 		if self.last_time_seconds is None:
@@ -112,3 +98,37 @@ class AttackStrategy(RcWrapper):
 
 		if self.should_engage():
 			self.engage()
+
+
+class AttackStrategyPixels(AttackStrategy):
+
+	def __init__(self, pid_vertical: PID, pid_horizontal: PID, frame_width, frame_height):
+		AttackStrategy.__init__(self, pid_vertical, pid_horizontal)
+		self.frame_width = frame_width
+		self.frame_height = frame_height
+
+	def should_engage(self):
+		preliminary_threshold = 80
+		clean_threshold = 40
+
+		diff = math.sqrt(self.last_offset_vertical ** 2 + self.last_offset_vertical ** 2)  # Plain-simple vector length
+
+		flag = self.target_lost and diff < preliminary_threshold
+		flag = flag or diff < clean_threshold
+
+		return flag
+
+	def get_normalized_output_horizontal(self, offset_horizontal_control):
+		return offset_horizontal_control / self.frame_width
+
+	def get_normalized_output_vertical(self, offset_vertical_control):
+		return offset_vertical_control / self.frame_height
+
+
+class AttackStrategyAngles(AttackStrategy):
+
+	def __init__(self, pid_vertical, pid_horizontal):
+		AttackStrategy.__init__(self, pid_vertical, pid_horizontal)
+
+	def should_engage(self):
+		
