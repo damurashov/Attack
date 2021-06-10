@@ -15,25 +15,26 @@ class RcWrapper(pioneer_sdk.Pioneer):
 			"mode": 2
 		}
 
-	def reset(self, *args, **kwargs):
+	def reset_rc(self, *args, **kwargs):
 		m = self.control["mode"]  # Reset everything but mode
 		for k in self.control.keys():
 			self.control[k] = 0
 		self.control["mode"] = m
 
-	def set(self, key, value):
+	def set_rc(self, key, value):
+		assert key in self.control.keys()
 		self.control[key] = value
 
-	def push(self):
+	def push_rc(self):
 		self.rc_channels(self.control['roll'], self.control['pitch'], self.control['yaw'], self.control['throttle'], self.control['mode'])
 
-	def push_task(self):
+	def push_rc_task(self):
 		"""
 		Should be used as a thread routine
 		:return:
 		"""
 		while True:
-			self.push()
+			self.push_rc()
 			time.sleep(0.05)
 
 
@@ -55,39 +56,59 @@ class AttackStrategy(RcWrapper):
 	PREMATURE_PX_THRESHOLD = 10  # Preliminary action threshold. If we lost a target, but reached the minimum threshold, we perform
 	TARGET_PX_THRESHOLD = 10  # The desired action threshold
 
-	def get_threshold(self):
-		raise NotImplemented
-
-	def get_normalized_output_horizontal(self):
-		raise NotImplemented
-
-	def get_nor
-
-	def _on_target(self):
-		pass
-
-	def __init__(self, threshold, frame_size_xy=None):
+	def __init__(self, pid_vertical: PID, pid_horizontal: PID):
 		RcWrapper.__init__(self)
-		self.pid_vertical = PID(AttackStrategy.P_VERTICAL_PID, AttackStrategy.I_VERTICAL_PID, AttackStrategy.D_VERTICAL_PID, AttackStrategy.SETPOINT)
-		self.pid_horizontal = PID(AttackStrategy.P_HORIZONTAL_PID, AttackStrategy.I_HORIZONTAN_PID, AttackStrategy.D_HORIZONTAL_PID, AttackStrategy.SETPOINT)
+		self.pid_vertical = pid_vertical
+		self.pid_horizontal = pid_horizontal
 
-	def
+		self.last_time_seconds = None
+		self.last_offset_horizontal = None
+		self.last_offset_vertical = None
+		self.target_lost = None
 
-	def on_error_rad(self, offset_yaw, offset_pitch):
-		self.threshold = self._threshold_rad
-		self.normalized_output = self._normalized_output_rad
+	def engage(self):
+		self.reset_rc()
+		self.set_rc('mode', 1)  # Copter is more agile in ALTHOLD mode, we should use this advantage
+		self.set_rc('throttle', 1.0)
 
-		self._on_target()
-		pass
+	def should_engage(self):
+		"""
+		Will be invoked after every iteration
+		"""
+		raise NotImplemented
 
-	def on_error_px(self, offset_x, offset_y):
-		self.threshold = self._threshold_px
-		self.normalized_output = self._normalized_output_px
+	def get_normalized_output_horizontal(self, offset_horizontal_suggested):
+		"""
+		Should use self.last_offset_horizontal
+		"""
+		raise NotImplemented
 
-		self._on_target()
-		pass
+	def get_normalized_output_vertical(self, offset_vertical_suggested):
+		"""
+		Should use self.last_offset_vertical
+		"""
+		raise NotImplemented
+
+	def on_target(self, offset_horizontal, offset_vertical):
+		# Update the values
+		self.last_offset_horizontal = offset_horizontal
+		self.last_offset_vertical = offset_vertical
+
+		delta_time_seconds = self.last_time_seconds
+		if self.last_time_seconds is None:
+			self.last_time_seconds = time.time()
+
+		if delta_time_seconds is not None:
+			delta_time_seconds = self.last_time_seconds - delta_time_seconds
+
+		if self.should_engage():
+			self.engage()
+
+		self.set_rc('throttle', self.get_normalized_output_vertical(self.pid_vertical(offset_vertical, delta_time_seconds)))
+		self.set_rc('yaw', self.get_normalized_output_horizontal(self.pid_horizontal(offset_horizontal, delta_time_seconds)))
 
 	def on_target_lost(self):
-		self.reset()  # Reset rc values, loiter
+		self.target_lost = True
 
-
+		if self.should_engage():
+			self.engage()
