@@ -3,36 +3,12 @@
 from pioneer_sdk import Pioneer
 import keyboard
 import time
-
-
-class Control(Pioneer):
-
-	def __init__(self, *args, **kwargs):
-		Pioneer.__init__(self, *args, **kwargs)
-		self.control = {
-			"roll": 0,
-			"pitch": 0,
-			"yaw": 0,
-			"throttle": 0,
-			"mode": 2
-		}
-
-	def reset(self, *args, **kwargs):
-		m = self.control["mode"]
-		for k in self.control.keys():
-			self.control[k] = 0
-		self.control["mode"] = m
-
-	def set(self, key, value):
-		self.control[key] = value
-
-	def push(self):
-		self.rc_channels(self.control['roll'], self.control['pitch'], self.control['yaw'], self.control['throttle'], self.control['mode'])
+from controller import RcWrapper
 
 
 if __name__ == "__main__":
 	INC = 1.0
-	pioneer = Control()
+	pioneer = RcWrapper()
 	pioneer.set("mode", 2)
 
 	keyboard.add_hotkey("w", pioneer.set, args=('pitch', INC))
