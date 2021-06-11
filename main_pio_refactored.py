@@ -27,4 +27,4 @@ if __name__ == "__main__":
 			continue
 		bbox, state = camera.track(img)
 		Camera.visualize_tracking(img, bbox, state)
-		cv2.waitKey(5)
+		cv2.waitKey(1)
