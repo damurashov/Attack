@@ -45,36 +45,42 @@ class Camera(TrackerPropagation):
 			return None
 
 	@staticmethod
-	def center_positions(bbox, img, normalize=True):
-
-		frame_sz = (img.shape[1], img.shape[0])
-		fov = 2.*math.atan2(max(frame_sz), max(frame_sz)*1.5)
+	def _center_positions(bbox, frame_sz, fov, normalize=True):
 
 		if not isinstance(bbox, np.ndarray):
 			bbox = np.array(bbox)
-
 		if not isinstance(frame_sz, np.ndarray):
 			frame_sz = np.array(frame_sz)
-
 		bbox = bbox.copy()
 		bbox = bbox.astype(np.float64)
 		bbox[:2] += bbox[2:] / 2.
 		dx, dy = bbox[:2]
-
 		frame_sz = frame_sz.copy()
 		frame_sz = frame_sz.astype(np.float64)
 		frame_sz = frame_sz / 2.
 		cx, cy = frame_sz
-
 		positions = np.array([dx - cx, dy - cy, dx - cx, dy - cy, ])
-
 		positions[:2] = positions[:2] * fov
-
 		if normalize:
-			positions[:2] = np.tanh(positions[:2])
 			positions[2:] = np.array([(dx - cx) / frame_sz[0], (dy - cy) / frame_sz[1]])
-
+			positions[:2] = positions[2:] * math.tanh(fov)
 		return positions
+
+	@staticmethod
+	def center_positions(bbox, img, normalize=True, type=None):
+		assert type in ['angles', 'pixels', None]
+
+		frame_sz = (img.shape[1], img.shape[0])
+		fov = 2.*math.atan2(max(frame_sz), max(frame_sz)*1.5)
+
+		pos = Camera._center_positions(bbox, frame_sz, fov, normalize)
+
+		if type == 'angles':
+			return pos[:2]
+		elif type == 'pixels':
+			return pos[2:]
+
+		return pos
 
 	@staticmethod
 	def visualize_tracking(img, bbox, state):
