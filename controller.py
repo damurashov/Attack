@@ -2,6 +2,7 @@ from PID import PID
 import pioneer_sdk
 import time
 import math
+from threedvector import Vector
 
 
 class RcWrapper(pioneer_sdk.Pioneer):
@@ -54,7 +55,7 @@ class AttackStrategy(RcWrapper):
 	def engage(self):
 		self.reset_rc()
 		self.set_rc('mode', 1)  # Copter is more agile in ALTHOLD mode, we should use this advantage
-		self.set_rc('throttle', 1.0)
+		self.set_rc('pitch', 1.0)
 
 	def should_engage(self):
 		"""
@@ -131,4 +132,25 @@ class AttackStrategyAngles(AttackStrategy):
 		AttackStrategy.__init__(self, pid_vertical, pid_horizontal)
 
 	def should_engage(self):
-		
+		preliminary_threshold_degrees = 5  # degrees
+		clean_threshold_degrees = 2  # degrees
+
+		# The representation of spherical coordinates used by this lib. agrees with the ISO representation
+		# (https://en.wikipedia.org/wiki/Spherical_coordinate_system)
+		# We consider X as view direction. Y increases right from us, Z increases up.
+
+		vec_view = Vector(1, 0, 90)  # (1, 0, 0) in cartesian
+		vec_target = Vector(1, math.degrees(self.last_offset_horizontal), 90 - math.degrees(self.last_offset_vertical))  # We leave asimuth as is, but invert altitude
+
+		angle_degrees = math.fabs(vec_view.angle(vec_target))
+
+		flag = angle_degrees < preliminary_threshold_degrees and self.target_lost
+		flag = flag or angle_degrees < clean_threshold_degrees
+
+		return flag
+
+	def get_normalized_output_horizontal(self, offset_horizontal_control_radians):  # Azimuth
+		return math.tanh(offset_horizontal_control_radians)
+
+	def get_normalized_output_vertical(self, offset_vertical_control_radians):  # Altitude
+		return math.tanh(offset_vertical_control_radians)
