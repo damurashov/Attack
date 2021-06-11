@@ -81,7 +81,7 @@ class Pioneer:
             self.__send_heartbeat()
             self.__receive_heartbeat()
             if not event.is_set():
-                event.set_rc()
+                event.set()
             time.sleep(self.__heartbeat_send_delay)
 
     def __get_ack(self):
