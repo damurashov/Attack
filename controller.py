@@ -10,12 +10,18 @@ class RcWrapper(pioneer_sdk.Pioneer):
 	def __init__(self, *args, **kwargs):
 		pioneer_sdk.Pioneer.__init__(self, *args, **kwargs)
 		self.control = {
-			"roll": 0,
-			"pitch": 0,
-			"yaw": 0,
-			"throttle": 0,
+			"roll": 0.0,
+			"pitch": 0.0,
+			"yaw": 0.0,
+			"throttle": 0.0,
 			"mode": 2
 		}
+
+	@staticmethod
+	def _rc_clamp(val):
+		min_value = -1.0
+		max_value = 1.0
+		return float(max(min(max_value, val), min_value))
 
 	def reset_rc(self, *args, **kwargs):
 		m = self.control["mode"]  # Reset everything but mode
@@ -25,7 +31,10 @@ class RcWrapper(pioneer_sdk.Pioneer):
 
 	def set_rc(self, key, value):
 		assert key in self.control.keys()
-		self.control[key] = value
+		if key == "mode":
+			assert value in [0, 1, 2]
+		else:
+			self.control[key] = RcWrapper._rc_clamp(value)
 
 	def push_rc(self):
 		self.rc_channels(self.control['roll'], self.control['pitch'], self.control['yaw'], self.control['throttle'], self.control['mode'])
