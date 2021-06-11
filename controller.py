@@ -103,7 +103,7 @@ class AttackStrategy(RcWrapper):
 
 class AttackStrategyPixels(AttackStrategy):
 
-	def __init__(self, pid_vertical: PID, pid_horizontal: PID, frame_width, frame_height):
+	def __init__(self, pid_vertical: PID, pid_horizontal: PID, frame_width=480, frame_height=320):
 		AttackStrategy.__init__(self, pid_vertical, pid_horizontal)
 		self.frame_width = frame_width
 		self.frame_height = frame_height
@@ -120,10 +120,10 @@ class AttackStrategyPixels(AttackStrategy):
 		return flag
 
 	def get_normalized_output_horizontal(self, offset_horizontal_control):
-		return offset_horizontal_control / self.frame_width
+		return offset_horizontal_control
 
 	def get_normalized_output_vertical(self, offset_vertical_control):
-		return offset_vertical_control / self.frame_height
+		return offset_vertical_control
 
 
 class AttackStrategyAngles(AttackStrategy):
