@@ -52,6 +52,12 @@ class AttackStrategy(RcWrapper):
 		self.last_offset_vertical = None
 		self.target_lost = None
 
+	def reset_pid(self):
+		self.last_time_seconds = None
+		self.last_offset_horizontal = None
+		self.last_offset_vertical = None
+		self.target_lost = None
+
 	def engage(self):
 		self.reset_rc()
 		self.set_rc('mode', 1)  # Copter is more agile in ALTHOLD mode, we should use this advantage
