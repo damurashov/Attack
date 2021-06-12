@@ -3,7 +3,6 @@
 
 import numpy as np
 import math
-import pioneer_sdk
 from tracker_propagation import TrackerPropagation, TRACKER_STATES
 from PyQt5.QtCore import QObject
 import cv2
@@ -11,17 +10,15 @@ import cv2
 
 class Camera(TrackerPropagation):
 
-	def __init__(self, opts):
+	def __init__(self, opts, get_raw_frame_cb):
 		QObject.__init__(self)
-		self.pioneer = pioneer_sdk.Pioneer()
+
+		self.get_raw_frame = get_raw_frame_cb
 
 		img = self.get_frame()
-
 		if img is None:
 			raise Exception
-
 		roi = cv2.selectROI("Select ROI", img)
-
 		TrackerPropagation.__init__(self, img, np.array(roi), opts)
 
 		# Close on any button
@@ -34,7 +31,7 @@ class Camera(TrackerPropagation):
 		:return: None, if failed to get one. cv2 frame on success
 		"""
 		try:
-			img = self.pioneer.get_raw_video_frame()
+			img = self.get_raw_frame()
 			if img is None:
 				return None
 
