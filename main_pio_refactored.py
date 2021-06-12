@@ -3,6 +3,7 @@ import argparse
 from PyQt5.QtWidgets import QApplication
 import sys
 import cv2
+import pioneer_sdk
 
 
 def getarparser():
@@ -18,8 +19,9 @@ def getarparser():
 if __name__ == "__main__":
 	opts = getarparser().parse_args()
 	app = QApplication(sys.argv)
+	pioneer = pioneer_sdk.Pioneer()
 
-	camera = Camera(opts)
+	camera = Camera(opts, pioneer.get_raw_video_frame)
 
 	while True:
 		img = camera.get_frame()
