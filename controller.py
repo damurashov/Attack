@@ -33,6 +33,7 @@ class RcWrapper(pioneer_sdk.Pioneer):
 		assert key in self.control.keys()
 		if key == "mode":
 			assert value in [0, 1, 2]
+			self.control[key] = value
 		else:
 			self.control[key] = RcWrapper._rc_clamp(value)
 
