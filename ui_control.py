@@ -112,7 +112,7 @@ class UiControl:
 			bbox, state = self.tracker.track(img)
 			Camera.visualize_tracking(img, bbox, state)
 
-			hv_positions = Camera.center_positions(bbox, img, type=self.pid_input)
+			hv_positions = Camera.center_positions(bbox, img, type=getarparser().parse_args().pid_input)
 			self.controller.on_target(*tuple(hv_positions))
 
 			key = cv2.waitKey(1)
