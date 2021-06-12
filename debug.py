@@ -91,5 +91,7 @@ if __name__ == "__main__":
 
 	rt_plot = RealTimePlot(50)
 	for i in range(0, 100):
-		rt_plot.append_data('test', float(i), random.random())
+		rt_plot.append_data('test1', float(i), random.random())
+		rt_plot.append_data('test2', float(i), random.random() * 2)
+		rt_plot.append_data('test3', float(i), random.random() - 10)
 		# time.sleep(0.02)
