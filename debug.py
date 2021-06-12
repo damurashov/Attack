@@ -13,7 +13,7 @@ class RealTimePlot:
 
 			self.x_data = x
 			self.y_data = y
-			self._line = line
+			self.line = line
 			self._n_lags = n_lags
 
 			self.set_x(self.x_data)
@@ -21,7 +21,7 @@ class RealTimePlot:
 
 		def set_x(self, x):
 			self.x_data = self._cut(x)
-			self._line.set_xdata(self.x_data)
+			self.line.set_xdata(self.x_data)
 
 		def append_x(self, x):
 			self.x_data.append(x)
@@ -29,7 +29,7 @@ class RealTimePlot:
 
 		def set_y(self, y):
 			self.y_data = self._cut(y)
-			self._line.set_ydata(self.y_data)
+			self.line.set_ydata(self.y_data)
 
 		def append_y(self, y):
 			self.y_data.append(y)
@@ -60,7 +60,9 @@ class RealTimePlot:
 		if name_data not in self.data.keys():
 			line, = self.ax.plot(x_data, y_data)
 			self.data[name_data] = RealTimePlot.Data(x_data, y_data, line, self.n_lags)
+			self.data[name_data].line.set_label(name_data)
 			return True
+		self.ax.legend(bbox_to_anchor=(0.0, 0.0))
 		return False
 
 	def set_data(self, name_data, x_data, y_data):
