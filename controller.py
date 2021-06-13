@@ -3,7 +3,6 @@ import pioneer_sdk
 import time
 import math
 from threedvector import Vector
-import os
 import debug
 
 
@@ -101,8 +100,13 @@ class AttackStrategy(RcWrapper):
 			debug.FlightLog.add_log_event("controller -- engaging (target locked)")
 			self.engage()
 
-		self.set_rc('throttle', self.get_normalized_output_vertical(self.pid_vertical(offset_vertical)))
-		self.set_rc('yaw', self.get_normalized_output_horizontal(self.pid_horizontal(offset_horizontal)))
+		y_control = self.get_normalized_output_vertical(self.pid_vertical(offset_vertical))
+		x_control = self.get_normalized_output_horizontal(self.pid_horizontal(offset_horizontal))
+
+		debug.FlightLog.add_log_engage(y_control, x_control, offset_vertical, offset_horizontal)
+
+		self.set_rc("throttle", y_control)
+		self.set_rc("yaw", x_control)
 
 	def on_target_lost(self):
 		self.target_lost = True
@@ -131,10 +135,10 @@ class AttackStrategyPixels(AttackStrategy):
 		return flag
 
 	def get_normalized_output_horizontal(self, offset_horizontal_control):
-		return offset_horizontal_control
+		return -offset_horizontal_control
 
 	def get_normalized_output_vertical(self, offset_vertical_control):
-		return offset_vertical_control
+		return -offset_vertical_control
 
 
 class AttackStrategyAngles(AttackStrategy):
