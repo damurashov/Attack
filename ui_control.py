@@ -35,8 +35,8 @@ class ParametersPidPixels:
 	I_VERTICAL_PID = 0.0
 	D_VERTICAL_PID = 0.0
 
-	P_HORIZONTAL_PID = 0.125
-	I_HORIZONTAL_PID = 0.125
+	P_HORIZONTAL_PID = 0.2
+	I_HORIZONTAL_PID = 0.0
 	D_HORIZONTAL_PID = 0.00
 
 
@@ -126,12 +126,13 @@ class UiControl:
 				if state == TRACKER_STATES.STATE_DELETED:
 					self.controller.on_target_lost()
 					debug.FlightLog.add_log_event("tracker lost")
+					cv2.waitKey(0)
+					cv2.destroyWindow(window_name)
+					break
 
 				# Calculate and apply control action
 				hv_positions = Camera.center_positions(bbox, img, type=getarparser().parse_args().pid_input)
-				self.controller.on_target(-hv_positions[0], -hv_positions[1])
-
-				debug.FlightLog.add_log_engage(self.controller, hv_positions)
+				self.controller.on_target(hv_positions[0], hv_positions[1])
 
 
 if __name__ == "__main__":
