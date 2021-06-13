@@ -5,26 +5,37 @@ import numpy as np
 import math
 from tracker_propagation import TrackerPropagation, TRACKER_STATES
 from PyQt5.QtCore import QObject
+from PyQt5.QtWidgets import QApplication
 import cv2
+import sys
+from args import getarparser
 
 
-class Camera(TrackerPropagation):
+class Camera:
 
-	def __init__(self, opts, get_raw_frame_cb):
-		QObject.__init__(self)
-
+	def __init__(self, get_raw_frame_cb):
 		self.get_raw_frame = get_raw_frame_cb
+		self.tracker = None
+		self.app = QApplication(sys.argv)
 
+	def purge_buffer(self, n_iterations):
+		for _ in range(0, n_iterations):
+			self.get_frame()
+
+	def init_tracker(self, window_name="Select ROI"):
 		img = self.get_frame()
 		if img is None:
-			raise Exception
-		roi = cv2.selectROI("Select ROI", img)
-		TrackerPropagation.__init__(self, img, np.array(roi), opts)
+			return False
 
-		# Close on any button
-		if cv2.waitKey(0):
-			cv2.destroyWindow("Select ROI")
+		roi = cv2.selectROI(window_name, img)
+		cv2.waitKey(1)
 
+		self.tracker = TrackerPropagation(img, np.array(roi), getarparser().parse_args())
+
+		return True
+
+	def track(self, *args, **kwargs):
+		return self.tracker.track(*args, **kwargs)
 
 	def get_frame(self):
 		"""
@@ -80,7 +91,7 @@ class Camera(TrackerPropagation):
 		return pos
 
 	@staticmethod
-	def visualize_tracking(img, bbox, state):
+	def visualize_tracking(img, bbox, state, window_name):
 		if state == TRACKER_STATES.STATE_CONFIRMED:
 			x1, y1, w, h = bbox
 			cv2.rectangle(img, (int(x1), int(y1)), (int(x1 + w), int(y1 + h)), (0, 255, 0), 2)
@@ -89,4 +100,5 @@ class Camera(TrackerPropagation):
 			cv2.putText(img, 'OBJECT LOST', (20, 20), cv2.FONT_HERSHEY_SIMPLEX,
 						1, (255, 0, 255), 2, cv2.LINE_AA)
 
-		cv2.imshow('Camera Stream', img)
+		cv2.imshow(window_name, img)
+		cv2.waitKey(1)
