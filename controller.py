@@ -139,7 +139,7 @@ class AttackStrategyPixels(AttackStrategy):
 		return -offset_horizontal_control
 
 	def get_normalized_output_vertical(self, offset_vertical_control):
-		return -offset_vertical_control
+		return offset_vertical_control
 
 
 class AttackStrategyAngles(AttackStrategy):

@@ -31,13 +31,13 @@ class ParametersPidAngles:
 
 
 class ParametersPidPixels:
-	P_VERTICAL_PID = 0.0
-	I_VERTICAL_PID = 0.0
+	P_VERTICAL_PID = 0.7
+	I_VERTICAL_PID = 0.06
 	D_VERTICAL_PID = 0.0
 
-	P_HORIZONTAL_PID = 0.2
-	I_HORIZONTAL_PID = 0.0
-	D_HORIZONTAL_PID = 0.00
+	P_HORIZONTAL_PID = 0.7
+	I_HORIZONTAL_PID = 0.06
+	D_HORIZONTAL_PID = 0.0
 
 
 SETPOINT = 0  # The deviation should be "0"
