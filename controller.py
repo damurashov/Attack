@@ -4,6 +4,7 @@ import time
 import math
 from threedvector import Vector
 import os
+import debug
 
 
 class RcWrapper(pioneer_sdk.Pioneer):
@@ -25,10 +26,9 @@ class RcWrapper(pioneer_sdk.Pioneer):
 		return float(max(min(max_value, val), min_value))
 
 	def reset_rc(self, *args, **kwargs):
-		m = self.control["mode"]  # Reset everything but mode
 		for k in self.control.keys():
-			self.control[k] = 0
-		self.control["mode"] = m
+			if k != "mode":
+				self.control[k] = 0.0
 
 	def set_rc(self, key, value):
 		assert key in self.control.keys()
@@ -47,6 +47,7 @@ class RcWrapper(pioneer_sdk.Pioneer):
 		:return:
 		"""
 		while True:
+			debug.FlightLog.add_log_rc(self)
 			self.push_rc()
 			time.sleep(0.05)
 
@@ -97,6 +98,7 @@ class AttackStrategy(RcWrapper):
 		self.target_lost = False
 
 		if self.should_engage():
+			debug.FlightLog.add_log_event("controller -- engaging (target locked)")
 			self.engage()
 
 		self.set_rc('throttle', self.get_normalized_output_vertical(self.pid_vertical(offset_vertical)))
@@ -106,6 +108,7 @@ class AttackStrategy(RcWrapper):
 		self.target_lost = True
 
 		if self.should_engage():
+			debug.FlightLog.add_log_event("controller -- engaging (target lost)")
 			self.engage()
 
 
