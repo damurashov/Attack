@@ -124,6 +124,7 @@ class AttackStrategyPixels(AttackStrategy):
 		self.frame_height = frame_height
 
 	def should_engage(self):
+		return False
 		preliminary_threshold = 80
 		clean_threshold = 40
 
@@ -147,6 +148,7 @@ class AttackStrategyAngles(AttackStrategy):
 		AttackStrategy.__init__(self, pid_vertical, pid_horizontal)
 
 	def should_engage(self):
+		return False
 		preliminary_threshold_degrees = 5  # degrees
 		clean_threshold_degrees = 2  # degrees
 
