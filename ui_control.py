@@ -14,6 +14,7 @@ import datetime
 import re
 import csv
 from tracker_propagation import TRACKER_STATES
+import debug
 
 from multiprocessing import Process, Pipe
 
@@ -33,14 +34,15 @@ class ParametersPidPixels:
 	I_VERTICAL_PID = 0.0
 	D_VERTICAL_PID = 0.0
 
-	P_HORIZONTAL_PID = 0.01
-	I_HORIZONTAL_PID = 0.01
-	D_HORIZONTAL_PID = 0.01
+	P_HORIZONTAL_PID = 0.125
+	I_HORIZONTAL_PID = 0.125
+	D_HORIZONTAL_PID = 0.00
 
 
 SETPOINT = 0  # The deviation should be "0"
 SAMPLE_TIME = None  # "dt" gets updated manually
-N_ITERATIONS_SKIP = 40  # How many iterations will be scipped before copter will start tracking
+N_ENGAGE_ITERATIONS_SKIP = 0  # How many iterations will be scipped before copter will start tracking
+N_FRAMES_SKIP = 50  # How many frames will be skipped (necessary for buffer purging)
 
 
 def getarparser():
@@ -119,16 +121,13 @@ class UiControl:
 		opts = getarparser().parse_args()
 		app = QApplication(sys.argv)
 
-		for _ in range(0, 10):
+		# Purge the socket's buffer from the cached stuff
+		for _ in range(0, N_FRAMES_SKIP):
 			self.controller.get_raw_video_frame()
 
 		camera = Camera(opts, self.controller.get_raw_video_frame)
 
-		log_file = open(re.sub('[^0-9a-zA-Z]+', '-', f'log-{datetime.datetime.now()}') + '.csv', 'w')
-		csv_writer = csv.DictWriter(log_file, fieldnames=['time', 'throttle', 'yaw', 'y_error', 'x_error'])
-		csv_writer.writeheader()
-
-		n_iteration = N_ITERATIONS_SKIP
+		n_iteration = N_ENGAGE_ITERATIONS_SKIP
 
 		while True:
 			img = camera.get_frame()
@@ -137,7 +136,7 @@ class UiControl:
 			bbox, state = camera.track(img)
 			Camera.visualize_tracking(img, bbox, state)
 
-			cv2.waitKey(5)
+			cv2.waitKey(1)
 
 			if n_iteration > 0:
 				n_iteration -= 1
@@ -145,25 +144,20 @@ class UiControl:
 				continue
 
 			if state == TRACKER_STATES.STATE_DELETED:
-				self.controller.reset_rc()
-				log_file.close()
-				return
+				self.controller.on_target_lost()
+				debug.FlightLog.add_log_event("tracker lost")
+				# return
 
 			hv_positions = Camera.center_positions(bbox, img, type=opts.pid_input)
 			self.controller.on_target(-hv_positions[0], -hv_positions[1])
 
-			csv_writer.writerow({
-				'time': time.time(),
-				'throttle': self.controller.control["throttle"],
-				'yaw': self.controller.control["yaw"],
-				'y_error': hv_positions[1],
-				'x_error': hv_positions[0]
-			})
+			debug.FlightLog.add_log_engage(self.controller, hv_positions)
 
 			cv2.waitKey(1)
 
 
 if __name__ == "__main__":
+	debug.FlightLog.add_log_event("starting")
 	ui_control = UiControl()
 	# ui_control.engage_mode()
 	while True:
