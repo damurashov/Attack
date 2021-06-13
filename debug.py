@@ -223,7 +223,7 @@ def plot_data(data: dict, key_x_data=None):
 
 
 class FlightLog:
-	log_engage = Log(file_variant="log-engage-", field_names=['time', 'throttle', 'yaw', 'y_error', 'x_error'])
+	log_engage = Log(file_variant="log-engage-", field_names=['time', 'y_control_throttle', 'x_control_yaw', 'y_error', 'x_error'])
 	log_event = Log(file_variant="log-event-", field_names=['time', 'event'])
 	log_rc = Log(file_variant="log-rc-", field_names=['time', 'throttle', 'yaw', "pitch", "roll", "mode"])
 	time_start_seconds = time.time()
@@ -233,10 +233,10 @@ class FlightLog:
 		return time.time() - FlightLog.time_start_seconds
 
 	@staticmethod
-	def add_log_engage(controller, offset: list):
+	def add_log_engage(y_control, x_control, y_error, x_error):
 		if not ENABLE_DEBUG:
 			return
-		FlightLog.log_engage.write([FlightLog.get_uptime_seconds(), controller.control["throttle"], controller.control["yaw"], offset[1], offset[0]])
+		FlightLog.log_engage.write([FlightLog.get_uptime_seconds(), y_control, x_control, y_error, x_error])
 
 	@staticmethod
 	def add_log_event(event):
