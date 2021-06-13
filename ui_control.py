@@ -15,6 +15,7 @@ import re
 import csv
 from tracker_propagation import TRACKER_STATES
 import debug
+from args import getarparser
 
 from multiprocessing import Process, Pipe
 
@@ -41,19 +42,7 @@ class ParametersPidPixels:
 
 SETPOINT = 0  # The deviation should be "0"
 SAMPLE_TIME = None  # "dt" gets updated manually
-N_ENGAGE_ITERATIONS_SKIP = 0  # How many iterations will be scipped before copter will start tracking
 N_FRAMES_SKIP = 50  # How many frames will be skipped (necessary for buffer purging)
-
-
-def getarparser():
-
-	parser = argparse.ArgumentParser()
-
-	parser.add_argument('--min_hits', type=int,  default=3,  help='minimum hits before state tracker will be CONFIRMED')
-	parser.add_argument('--max_age',  type=int,  default=10, help='maximum predictes without updates')
-	parser.add_argument('--tracker_name', type=str, default='kcf', choices=['csrt', 'kcf', 'mil'])
-	parser.add_argument('--pid_input', type=str, default='pixels', choices=['pixels', 'angles'])
-	return parser
 
 
 class UiControl:
@@ -62,6 +51,9 @@ class UiControl:
 		self.thread_rc_pid = UiControl.__instantiate_thread_rc(self.controller)
 		self.tracker = None
 		self.__instantiate_key_mappings()
+
+		self.sem_engage_routine = threading.Semaphore(1)
+		self.sem_engage_routine.acquire()
 
 	@staticmethod
 	def __instantiate_thread_rc(controller: AttackStrategy):
@@ -99,7 +91,7 @@ class UiControl:
 		keyboard.add_hotkey("2", self.controller.set_rc, args=('mode', 2))
 		keyboard.add_hotkey('ctrl+a', self.controller.arm)
 		keyboard.add_hotkey('ctrl+d', self.controller.disarm)
-		keyboard.add_hotkey('ctrl+e', self.engage_mode)
+		keyboard.add_hotkey('ctrl+e', lambda: self.sem_engage_routine.release())
 
 	def __map_rc_channel_toggle(self, kb_key, rc_channel, value, reset_on_release=True):
 		keyboard.add_hotkey(kb_key, self.controller.set_rc, args=(rc_channel, value,))
@@ -108,57 +100,44 @@ class UiControl:
 			# keyboard.add_hotkey(kb_key, self.controller.set_rc, args=(rc_channel, 0.0,), trigger_on_release=True)
 			keyboard.on_release_key(kb_key.split('+')[-1], lambda e: self.controller.set_rc(rc_channel, 0.0))
 
-	@staticmethod
-	def task_plot(conn):
-		rt_plot = RealTimePlot(50)
-		while True:
-			data = conn.recv()
-			t = time.time()
-			for k, v in data.items():
-				rt_plot.append_data(k, t, v)
-
 	def engage_mode(self):
-		opts = getarparser().parse_args()
-		app = QApplication(sys.argv)
-
-		# Purge the socket's buffer from the cached stuff
-		for _ in range(0, N_FRAMES_SKIP):
-			self.controller.get_raw_video_frame()
-
-		camera = Camera(opts, self.controller.get_raw_video_frame)
-
-		n_iteration = N_ENGAGE_ITERATIONS_SKIP
-
 		while True:
-			img = camera.get_frame()
-			if img is None:
-				continue
-			bbox, state = camera.track(img)
-			Camera.visualize_tracking(img, bbox, state)
+			self.sem_engage_routine.acquire()
+			window_name = "Tracking"
 
-			cv2.waitKey(1)
+			debug.FlightLog.add_log_event("engage mode")
 
-			if n_iteration > 0:
-				n_iteration -= 1
-				print("skipping iteration")
-				continue
+			camera = Camera(self.controller.get_raw_video_frame)
+			camera.purge_buffer(N_FRAMES_SKIP)
+			while not camera.init_tracker(window_name):
+				pass
+			# camera.purge_buffer(N_FRAMES_SKIP)
 
-			if state == TRACKER_STATES.STATE_DELETED:
-				self.controller.on_target_lost()
-				debug.FlightLog.add_log_event("tracker lost")
-				# return
+			while True:
 
-			hv_positions = Camera.center_positions(bbox, img, type=opts.pid_input)
-			self.controller.on_target(-hv_positions[0], -hv_positions[1])
+				# Visualize tracking
+				img = camera.get_frame()
+				if img is None:
+					continue
+				bbox, state = camera.track(img)
+				Camera.visualize_tracking(img, bbox, state, window_name)
 
-			debug.FlightLog.add_log_engage(self.controller, hv_positions)
+				# Process tracking state
+				if state == TRACKER_STATES.STATE_DELETED:
+					self.controller.on_target_lost()
+					debug.FlightLog.add_log_event("tracker lost")
 
-			cv2.waitKey(1)
+				# Calculate and apply control action
+				hv_positions = Camera.center_positions(bbox, img, type=getarparser().parse_args().pid_input)
+				self.controller.on_target(-hv_positions[0], -hv_positions[1])
+
+				debug.FlightLog.add_log_engage(self.controller, hv_positions)
 
 
 if __name__ == "__main__":
+	app = QApplication(sys.argv)
 	debug.FlightLog.add_log_event("starting")
 	ui_control = UiControl()
-	# ui_control.engage_mode()
+	ui_control.engage_mode()
 	while True:
-		pass
+		cv2.waitKey(1)
