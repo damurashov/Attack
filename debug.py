@@ -3,6 +3,10 @@ import numpy as np
 import csv
 import os
 import datetime
+import time
+
+
+ENABLE_DEBUG = True
 
 
 class RealTimePlot:
@@ -115,7 +119,7 @@ class Log:
 				self.file_instance = open(file_variant, 'r')  # It is a path to a file, open it
 				self.file_close_callback = lambda f: f.close()
 			else:
-				self.file_instance = open(file_variant + datetime.datetime.strftime(datetime.datetime.now(), "%G-%m-%d-%H-%M") + ".csv", 'w')  # It is a prefix for a file, create it
+				self.file_instance = open(file_variant + datetime.datetime.strftime(datetime.datetime.now(), "%G-%m-%d-%H-%M-%S") + ".csv", 'w')  # It is a prefix for a file, create it
 				self.file_close_callback = lambda f: f.close()
 		else:
 			self.file_instance = file_variant  # It is an instance of a file, use it
@@ -216,6 +220,33 @@ def plot_data(data: dict, key_x_data=None):
 
 	ax.legend(list(data.keys()))
 	plt.show()
+
+
+class FlightLog:
+	log_engage = Log(file_variant="log-engage-", field_names=['time', 'throttle', 'yaw', 'y_error', 'x_error'])
+	log_event = Log(file_variant="log-event-", field_names=['time', 'event'])
+	log_rc = Log(file_variant="log-rc-", field_names=['time', 'throttle', 'yaw', "pitch", "roll", "mode"])
+	time_start_seconds = time.time()
+
+	@staticmethod
+	def get_uptime_seconds():
+		return time.time() - FlightLog.time_start_seconds
+
+	@staticmethod
+	def add_log_engage(controller, offset: list):
+		if not ENABLE_DEBUG:
+			return
+		FlightLog.log_engage.write([FlightLog.get_uptime_seconds(), controller.control["throttle"], controller.control["yaw"], offset[1], offset[0]])
+
+	@staticmethod
+	def add_log_event(event):
+		if not ENABLE_DEBUG:
+			return
+		FlightLog.log_event.write([FlightLog.get_uptime_seconds(), str(event)])
+
+	@staticmethod
+	def add_log_rc(controller):
+		FlightLog.log_rc.write([FlightLog.get_uptime_seconds()] + [controller.control[k] for k in ['throttle', 'yaw', "pitch", "roll", "mode"]])
 
 
 if __name__ == "__main__":
