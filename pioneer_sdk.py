@@ -9,7 +9,6 @@ class Pioneer:
     def __init__(self, pioneer_ip='192.168.4.1', pioneer_video_port=8888, pioneer_video_control_port=8888,
                  pioneer_mavlink_port=8001, logger=True):
         self.__VIDEO_BUFFER = 65535
-        self.__VIDEO_SOCKET_DT = 3
         video_control_address = (pioneer_ip, pioneer_video_control_port)
         self.__video_control_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.__video_control_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -17,7 +16,6 @@ class Pioneer:
         self.__video_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.__video_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.__video_socket.settimeout(5)
-        self.__video_socket_last_call_sec = time.time()
 
         self.__video_frame_buffer = bytes()
         self.__raw_video_frame = 0
@@ -51,9 +49,6 @@ class Pioneer:
     def get_raw_video_frame(self):
         try:
             while True:
-                if self.__video_socket_last_call_sec > self.__VIDEO_SOCKET_DT:
-                    self.__video_socket_last_call_sec = time.time()
-                    self.__video_socket.recv(64*1024)  # flush buffer
                 self.__video_frame_buffer += self.__video_socket.recv(self.__VIDEO_BUFFER)
                 beginning = self.__video_frame_buffer.find(b'\xff\xd8')
                 end = self.__video_frame_buffer.find(b'\xff\xd9')
