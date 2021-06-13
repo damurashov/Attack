@@ -21,7 +21,8 @@ if __name__ == "__main__":
 	app = QApplication(sys.argv)
 	pioneer = pioneer_sdk.Pioneer()
 
-	camera = Camera(opts, pioneer.get_raw_video_frame)
+	camera = Camera(pioneer.get_raw_video_frame)
+	camera.init_tracker()
 
 	while True:
 		img = camera.get_frame()
