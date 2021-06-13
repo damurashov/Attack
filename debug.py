@@ -1,5 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import csv
+import os
+import datetime
 
 
 class RealTimePlot:
@@ -87,13 +90,133 @@ class RealTimePlot:
 		self.figure.canvas.flush_events()
 
 
-if __name__ == "__main__":
+def example_real_time_plot():
 	import random
-	import time
 
 	rt_plot = RealTimePlot(50)
 	for i in range(0, 100):
 		rt_plot.append_data('test1', float(i), random.random())
 		rt_plot.append_data('test2', float(i), random.random() * 2)
 		rt_plot.append_data('test3', float(i), random.random() - 10)
-		# time.sleep(0.02)
+
+
+class Log:
+	def __init__(self, file_variant, field_names=None):
+		"""
+		:param file_variant:  file_path of an existing file (opens it), or file_instance (just uses it), or file_prefix (creates a new file)
+		:param field_names:
+		:return:
+		"""
+		self.file_instance = None
+
+		self.file_close_callback = lambda f: None
+		if type(file_variant) is str:
+			if os.path.isfile(file_variant):
+				self.file_instance = open(file_variant, 'r')  # It is a path to a file, open it
+				self.file_close_callback = lambda f: f.close()
+			else:
+				self.file_instance = open(file_variant + datetime.datetime.strftime(datetime.datetime.now(), "%G-%m-%d-%H-%M") + ".csv", 'w')  # It is a prefix for a file, create it
+				self.file_close_callback = lambda f: f.close()
+		else:
+			self.file_instance = file_variant  # It is an instance of a file, use it
+
+		self.field_names = field_names
+		self.csv_writer = None
+
+	def __del__(self):
+		self.file_close_callback(self.file_instance)
+
+	def to_list(self):
+		"""
+		Reads data from the file, and represents the result as a list
+		"""
+		list_instances = []
+
+		try:
+			reader = csv.DictReader(self.file_instance, fieldnames=self.field_names)
+		except:
+			reader = csv.reader()
+
+		for row in reader:
+			list_instances.append(dict(row))
+
+		self.file_instance.seek(0, 0)
+		return list_instances
+
+	def to_dict(self):
+		"""
+		Reads data from the file, and represents the result as a dict
+		"""
+		dict_entries = dict()
+		reader = csv.DictReader(self.file_instance, fieldnames=self.field_names)
+		for row in reader:
+			for k, v in dict(row).items():
+				if k in dict_entries.keys():
+					dict_entries[k].append(v)
+				else:
+					dict_entries[k] = []
+		self.file_instance.seek(0, 0)
+		return dict_entries
+
+	def write(self, row):
+		if self.csv_writer is None:
+			if self.field_names is not None:
+				self.csv_writer = csv.DictWriter(self.file_instance, fieldnames=self.field_names)
+				self.csv_writer.writeheader()
+			else:
+				self.csv_writer = csv.writer(self.file_instance)
+				if self.field_names is not None:
+					self.csv_writer.writerow(self.field_names)
+
+		assert type(row) in [list, dict]
+		if type(self.csv_writer) is csv.DictWriter and type(row) is list:
+			d = dict()
+			for k, v in zip(self.csv_writer.fieldnames, row):
+				d[k] = v
+			self.csv_writer.writerow(d)
+		else:
+			self.csv_writer.writerow(row)
+
+
+def example_log():
+	import sys
+	file_variant = sys.argv[1]
+	log = Log(file_variant=file_variant)
+	print(log.to_list())
+	print(log.to_dict())
+	log = log.to_dict()
+	plot_data(log)
+
+	del log
+
+	log = Log(file_variant="log-events-", field_names=["time", "event"])
+	log.write([12, 'echo'])
+
+	del log
+
+	log = Log(file_variant="log-log")
+	log.write([21, 13])
+	log.write([21, 13])
+
+
+def plot_data(data: dict, key_x_data=None):
+	"""
+	Creates a single plot representing all the data
+	:key_x_data: Name of the key representing coordinates for the X axis. When 'None' is used, the first key of the
+	             data dictionary is considered to be one
+	:data: Data to plot
+	"""
+	fig, ax = plt.subplots()
+	x_key = list(data.keys())[0] if key_x_data is None else key_x_data
+	x_values = [float(x) for x in data[x_key]]
+	data.pop(x_key)
+
+	for v in data.values():
+		ax.plot(x_values, [float(iv) for iv in v])
+
+	ax.legend(list(data.keys()))
+	plt.show()
+
+
+if __name__ == "__main__":
+	example_log()
