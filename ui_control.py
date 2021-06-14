@@ -21,23 +21,29 @@ from multiprocessing import Process, Pipe
 
 
 class ParametersPidAngles:
-	P_VERTICAL_PID = 1
-	I_VERTICAL_PID = 0.1
-	D_VERTICAL_PID = 0.05
+	P_VERTICAL_PID = 0.0
+	I_VERTICAL_PID = 0.0
+	D_VERTICAL_PID = 0.0
 
-	P_HORIZONTAL_PID = 1
-	I_HORIZONTAL_PID = 0.1
-	D_HORIZONTAL_PID = 0.05
+	P_HORIZONTAL_PID = 0.0
+	I_HORIZONTAL_PID = 0.0
+	D_HORIZONTAL_PID = 0.0
+
+	DELTA_ENGAGE_THRESHOLD_PRELIMINARY = 0.0
+	DELTA_ENGAGE_THRESHOLD_CLEAN = 0.0
 
 
 class ParametersPidPixels:
-	P_VERTICAL_PID = 0.7
-	I_VERTICAL_PID = 0.06
+	P_VERTICAL_PID = 0.3
+	I_VERTICAL_PID = 0.08
 	D_VERTICAL_PID = 0.0
 
 	P_HORIZONTAL_PID = 0.7
 	I_HORIZONTAL_PID = 0.06
 	D_HORIZONTAL_PID = 0.0
+
+	DELTA_ENGAGE_THRESHOLD_PRELIMINARY = 0.0
+	DELTA_ENGAGE_THRESHOLD_CLEAN = 0.0
 
 
 SETPOINT = 0  # The deviation should be "0"
@@ -72,10 +78,25 @@ class UiControl:
 
 		ParametersClass, StrategyClass = pid_to_class_mapping[pid_input]
 
-		pid_vertical = PID(ParametersClass.P_VERTICAL_PID, ParametersClass.I_VERTICAL_PID, ParametersClass.D_VERTICAL_PID, SETPOINT, SAMPLE_TIME)
-		pid_horizontal = PID(ParametersClass.P_HORIZONTAL_PID, ParametersClass.I_HORIZONTAL_PID, ParametersClass.D_HORIZONTAL_PID, SETPOINT, SAMPLE_TIME)
+		pid_vertical = PID(ParametersClass.P_VERTICAL_PID,
+			ParametersClass.I_VERTICAL_PID,
+			ParametersClass.D_VERTICAL_PID,
+			SETPOINT,
+			SAMPLE_TIME)
 
-		return StrategyClass(pid_vertical, pid_horizontal)
+		pid_horizontal = PID(ParametersClass.P_HORIZONTAL_PID,
+			ParametersClass.I_HORIZONTAL_PID,
+			ParametersClass.D_HORIZONTAL_PID,
+			SETPOINT,
+			SAMPLE_TIME)
+
+		delta_threshold_preliminary = ParametersClass.DELTA_ENGAGE_THRESHOLD_PRELIMINARY
+		delta_threshold_clean = ParametersClass.DELTA_ENGAGE_THRESHOLD_CLEAN
+
+		return StrategyClass(pid_vertical=pid_vertical,
+			pid_horizontal=pid_horizontal,
+			delta_threshold_preliminary=delta_threshold_preliminary,
+			delta_threshold_clean=delta_threshold_clean)
 
 	def __instantiate_key_mappings(self):
 		self.__map_rc_channel_toggle('w', 'pitch', 1.0)
