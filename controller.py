@@ -118,6 +118,9 @@ class AttackStrategy(RcWrapper):
 		if self.should_engage():
 			debug.FlightLog.add_log_event("controller -- engaging (target lost)")
 			self.engage()
+		else:
+			self.reset_pid()
+			self.reset_rc()
 
 
 class AttackStrategyPixels(AttackStrategy):
