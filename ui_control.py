@@ -159,7 +159,7 @@ class UiControl:
 
 				# Calculate and apply control action
 				hv_positions = Camera.center_positions(bbox, img, type=getarparser().parse_args().pid_input)
-				self.controller.on_target(hv_positions[0], hv_positions[1])
+				self.controller.on_target(hv_positions[0], -hv_positions[1])
 
 
 if __name__ == "__main__":
