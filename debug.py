@@ -226,6 +226,7 @@ class FlightLog:
 	log_engage = Log(file_variant="log-engage-", field_names=['time', 'y_control_throttle', 'x_control_yaw', 'y_error', 'x_error'])
 	log_event = Log(file_variant="log-event-", field_names=['time', 'event'])
 	log_rc = Log(file_variant="log-rc-", field_names=['time', 'throttle', 'yaw', "pitch", "roll", "mode"])
+	log_threshold = Log(file_variant="log-threshold-", field_names=["time", "delta", "delta_threshold_clean", "delta_threshold_preliminary", "engage_state {0; 1}", "target_lost {0; 1}"])
 	time_start_seconds = time.time()
 
 	@staticmethod
@@ -247,6 +248,10 @@ class FlightLog:
 	@staticmethod
 	def add_log_rc(controller):
 		FlightLog.log_rc.write([FlightLog.get_uptime_seconds()] + [controller.control[k] for k in ['throttle', 'yaw', "pitch", "roll", "mode"]])
+
+	@staticmethod
+	def add_log_threshold(delta: float, delta_threshold_clean: float, delta_threshold_preliminary: float, engage_state: bool, target_lost: bool):
+		FlightLog.log_threshold.write([FlightLog.get_uptime_seconds(), delta, delta_threshold_clean, delta_threshold_preliminary, float(engage_state), float(target_lost)])
 
 
 if __name__ == "__main__":
