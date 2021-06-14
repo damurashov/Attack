@@ -136,7 +136,6 @@ class UiControl:
 
 
 if __name__ == "__main__":
-	app = QApplication(sys.argv)
 	debug.FlightLog.add_log_event("starting")
 	ui_control = UiControl()
 	ui_control.engage_mode()
