@@ -53,7 +53,7 @@ class RcWrapper(pioneer_sdk.Pioneer):
 
 class AttackStrategy(RcWrapper):
 
-	def __init__(self, pid_vertical: PID, pid_horizontal: PID):
+	def __init__(self, pid_vertical: PID, pid_horizontal: PID, delta_threshold_preliminary=0.0, delta_threshold_clean=0.0):
 		RcWrapper.__init__(self)
 		self.pid_vertical = pid_vertical
 		self.pid_horizontal = pid_horizontal
@@ -62,6 +62,9 @@ class AttackStrategy(RcWrapper):
 		self.last_offset_horizontal = None
 		self.target_lost = None
 
+		self.delta_engage_threshold_preliminary = delta_threshold_preliminary
+		self.delta_engage_threshold_clean = delta_threshold_clean
+
 	def reset_pid(self):
 		self.last_offset_horizontal = None
 		self.last_offset_vertical = None
@@ -69,8 +72,8 @@ class AttackStrategy(RcWrapper):
 
 	def engage(self):
 		self.reset_rc()
-		self.set_rc('mode', 1)  # Copter is more agile in ALTHOLD mode, we should use this advantage
-		self.set_rc('pitch', 1.0)
+		# self.set_rc('mode', 1)  # Copter is more agile in ALTHOLD mode, we should use this advantage
+		self.set_rc('pitch', 0.5)
 
 	def should_engage(self):
 		"""
@@ -99,6 +102,7 @@ class AttackStrategy(RcWrapper):
 		if self.should_engage():
 			debug.FlightLog.add_log_event("controller -- engaging (target locked)")
 			self.engage()
+			return
 
 		y_control = self.get_normalized_output_vertical(self.pid_vertical(offset_vertical))
 		x_control = self.get_normalized_output_horizontal(self.pid_horizontal(offset_horizontal))
@@ -118,20 +122,18 @@ class AttackStrategy(RcWrapper):
 
 class AttackStrategyPixels(AttackStrategy):
 
-	def __init__(self, pid_vertical: PID, pid_horizontal: PID, frame_width=480, frame_height=320):
-		AttackStrategy.__init__(self, pid_vertical, pid_horizontal)
+	def __init__(self, frame_width=480, frame_height=320, *args, **kwargs):
+		AttackStrategy.__init__(self, *args, **kwargs)
 		self.frame_width = frame_width
 		self.frame_height = frame_height
 
 	def should_engage(self):
-		return False
-		preliminary_threshold = 80
-		clean_threshold = 40
-
 		diff = math.sqrt(self.last_offset_vertical ** 2 + self.last_offset_vertical ** 2)  # Plain-simple vector length
 
-		flag = self.target_lost and diff < preliminary_threshold
-		flag = flag or diff < clean_threshold
+		flag = self.target_lost and diff < self.delta_engage_threshold_preliminary
+		flag = flag or diff < self.delta_engage_threshold_clean
+
+		debug.FlightLog.add_log_threshold(diff, self.delta_engage_threshold_clean, self.delta_engage_threshold_preliminary, flag, self.target_lost)
 
 		return flag
 
@@ -144,14 +146,10 @@ class AttackStrategyPixels(AttackStrategy):
 
 class AttackStrategyAngles(AttackStrategy):
 
-	def __init__(self, pid_vertical, pid_horizontal):
-		AttackStrategy.__init__(self, pid_vertical, pid_horizontal)
+	def __init__(self, *args, **kwargs):
+		AttackStrategy.__init__(self, *args, **kwargs)
 
 	def should_engage(self):
-		return False
-		preliminary_threshold_degrees = 5  # degrees
-		clean_threshold_degrees = 2  # degrees
-
 		# The representation of spherical coordinates used by this lib. agrees with the ISO representation
 		# (https://en.wikipedia.org/wiki/Spherical_coordinate_system)
 		# We consider X as view direction. Y increases right from us, Z increases up.
@@ -161,8 +159,8 @@ class AttackStrategyAngles(AttackStrategy):
 
 		angle_degrees = math.fabs(vec_view.angle(vec_target))
 
-		flag = angle_degrees < preliminary_threshold_degrees and self.target_lost
-		flag = flag or angle_degrees < clean_threshold_degrees
+		flag = angle_degrees < self.delta_engage_threshold_preliminary and self.target_lost
+		flag = flag or angle_degrees < self.delta_engage_threshold_clean
 
 		return flag
 
