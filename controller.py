@@ -53,7 +53,14 @@ class RcWrapper(pioneer_sdk.Pioneer):
 
 class AttackStrategy(RcWrapper):
 
-	def __init__(self, pid_vertical: PID, pid_horizontal: PID, delta_threshold_preliminary=0.0, delta_threshold_clean=0.0):
+	def __init__(self, pid_vertical: PID, pid_horizontal: PID, delta_threshold_preliminary=0.0, delta_threshold_clean=0.0, n_iterations_control_lag=0):
+		"""
+		@param pid_vertical:  -  vertical PID, expected to be pre-initialized
+		@param pid_horizontal:  -  horizontal PID, expected to be pre-initialized
+		@param delta_threshold_preliminary:  -  If the threshold is met, the copter is clear to engage if a target gets lost
+		@param delta_threshold_clean:  -  If the threshold is met, the copter engages right away
+		@param n_iterations_control_lag:  -  number of iterations to skip before starting to impose control action.
+		"""
 		RcWrapper.__init__(self)
 		self.pid_vertical = pid_vertical
 		self.pid_horizontal = pid_horizontal
@@ -62,6 +69,9 @@ class AttackStrategy(RcWrapper):
 		self.last_offset_horizontal = None
 		self.target_lost = None
 
+		self.n_iterations_control_lag = int(n_iterations_control_lag)
+		self.n_iterations_control_lag_left = self.n_iterations_control_lag
+
 		self.delta_engage_threshold_preliminary = delta_threshold_preliminary
 		self.delta_engage_threshold_clean = delta_threshold_clean
 
@@ -69,6 +79,7 @@ class AttackStrategy(RcWrapper):
 		self.last_offset_horizontal = None
 		self.last_offset_vertical = None
 		self.target_lost = None
+		self.n_iterations_control_lag_left = self.n_iterations_control_lag
 
 	def engage(self):
 		self.reset_rc()
@@ -106,6 +117,10 @@ class AttackStrategy(RcWrapper):
 
 		y_control = self.get_normalized_output_vertical(self.pid_vertical(offset_vertical))
 		x_control = self.get_normalized_output_horizontal(self.pid_horizontal(offset_horizontal))
+
+		if self.n_iterations_control_lag_left > 0:
+			self.n_iterations_control_lag_left -= 1
+			return
 
 		debug.FlightLog.add_log_engage(y_control, x_control, offset_vertical, offset_horizontal)
 
