@@ -92,7 +92,13 @@ class AttackStrategy(RcWrapper):
 
 		debug.FlightLog.add_log_event(f'initializing controller, '
 			f'control_horizontal_range: {self.control_horizontal_range}, '
-			f'control_vertical_range: {self.control_vertical_range}')
+			f'control_vertical_range: {self.control_vertical_range} ,'
+			f'n_iterations_control_lag: {self.n_iterations_control_lag}, '
+			f'delta_threshold clean / preliminary: {self.delta_engage_threshold_clean} / {self.delta_engage_threshold_preliminary}, '
+			f'P / I / D vertical: {self.pid_vertical.Kp} / {self.pid_vertical.Ki} / {self.pid_vertical.Kd}, '
+			f'P / I / D horizontal: {self.pid_horizontal.Kp} / {self.pid_horizontal.Ki} / {self.pid_horizontal.Kd}, '
+		)
+
 
 	def reset_pid(self):
 		self.last_offset_horizontal = None
