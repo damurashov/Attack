@@ -6,6 +6,10 @@ from threedvector import Vector
 import debug
 
 
+def clamp(val, min_value, max_value):
+	return max(min(max_value, val), min_value)
+
+
 class RcWrapper(pioneer_sdk.Pioneer):
 
 	def __init__(self, *args, **kwargs):
@@ -53,13 +57,21 @@ class RcWrapper(pioneer_sdk.Pioneer):
 
 class AttackStrategy(RcWrapper):
 
-	def __init__(self, pid_vertical: PID, pid_horizontal: PID, delta_threshold_preliminary=0.0, delta_threshold_clean=0.0, n_iterations_control_lag=0):
+	def __init__(self, pid_vertical: PID,
+		pid_horizontal: PID,
+		delta_threshold_preliminary=0.0,
+		delta_threshold_clean=0.0,
+		control_horizontal_range=(-1.0, 1.0,),
+		control_vertical_range=(-1.0, 1.0),
+		n_iterations_control_lag=0):
 		"""
 		@param pid_vertical:  -  vertical PID, expected to be pre-initialized
 		@param pid_horizontal:  -  horizontal PID, expected to be pre-initialized
 		@param delta_threshold_preliminary:  -  If the threshold is met, the copter is clear to engage if a target gets lost
 		@param delta_threshold_clean:  -  If the threshold is met, the copter engages right away
 		@param n_iterations_control_lag:  -  number of iterations to skip before starting to impose control action.
+		@param control_horizontal_range  -  a range regarding to which the control action will be clamped
+		@param control_vertical_range  -  a range regarding to which the control action will be clamped
 		"""
 		RcWrapper.__init__(self)
 		self.pid_vertical = pid_vertical
@@ -74,6 +86,13 @@ class AttackStrategy(RcWrapper):
 
 		self.delta_engage_threshold_preliminary = delta_threshold_preliminary
 		self.delta_engage_threshold_clean = delta_threshold_clean
+
+		self.control_horizontal_range = control_horizontal_range
+		self.control_vertical_range = control_vertical_range
+
+		debug.FlightLog.add_log_event(f'initializing controller, '
+			f'control_horizontal_range: {self.control_horizontal_range}, '
+			f'control_vertical_range: {self.control_vertical_range}')
 
 	def reset_pid(self):
 		self.last_offset_horizontal = None
@@ -115,8 +134,8 @@ class AttackStrategy(RcWrapper):
 			self.engage()
 			return
 
-		y_control = self.get_normalized_output_vertical(self.pid_vertical(offset_vertical))
-		x_control = self.get_normalized_output_horizontal(self.pid_horizontal(offset_horizontal))
+		y_control = clamp(self.get_normalized_output_vertical(self.pid_vertical(offset_vertical)), *self.control_vertical_range)
+		x_control = clamp(self.get_normalized_output_horizontal(self.pid_horizontal(offset_horizontal)), *self.control_horizontal_range)
 
 		if self.n_iterations_control_lag_left > 0:
 			self.n_iterations_control_lag_left -= 1

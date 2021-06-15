@@ -32,6 +32,9 @@ class ParametersPidAngles:
 	DELTA_ENGAGE_THRESHOLD_PRELIMINARY = 0.0
 	DELTA_ENGAGE_THRESHOLD_CLEAN = 0.0
 
+	CONTROL_VERTICAL_RANGE = (-0.7, 0.7,)
+	CONTROL_HORIZONTAL_RANGE = (-1.0, 1.0)
+
 	N_ITERATIONS_CONTROL_LAG = 0
 
 
@@ -46,6 +49,9 @@ class ParametersPidPixels:
 
 	DELTA_ENGAGE_THRESHOLD_PRELIMINARY = 0.04
 	DELTA_ENGAGE_THRESHOLD_CLEAN = 0.02
+
+	CONTROL_VERTICAL_RANGE = (-0.7, 0.7,)
+	CONTROL_HORIZONTAL_RANGE = (-0.5, 0.5,)
 
 	N_ITERATIONS_CONTROL_LAG = 3  # Number of iterations the controller will wait skip before it starts imposing a control action
 
@@ -98,11 +104,16 @@ class UiControl:
 		delta_threshold_clean = ParametersClass.DELTA_ENGAGE_THRESHOLD_CLEAN
 		n_iterations_control_lag = ParametersClass.N_ITERATIONS_CONTROL_LAG
 
+		control_horizontal_range = ParametersClass.CONTROL_HORIZONTAL_RANGE
+		control_vertical_range = ParametersClass.CONTROL_VERTICAL_RANGE
+
 		return StrategyClass(pid_vertical=pid_vertical,
 			pid_horizontal=pid_horizontal,
 			delta_threshold_preliminary=delta_threshold_preliminary,
 			delta_threshold_clean=delta_threshold_clean,
-			n_iterations_control_lag=n_iterations_control_lag)
+			n_iterations_control_lag=n_iterations_control_lag,
+			control_horizontal_range=control_horizontal_range,
+			control_vertical_range=control_vertical_range)
 
 	def __instantiate_key_mappings(self):
 		self.__map_rc_channel_toggle('w', 'pitch', 1.0)
