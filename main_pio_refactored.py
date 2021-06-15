@@ -1,6 +1,6 @@
 from camera import Camera
 import argparse
-from PyQt5.QtWidgets import QApplication
+from PySide2.QtWidgets import QApplication
 import sys
 import cv2
 import pioneer_sdk

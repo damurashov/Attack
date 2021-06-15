@@ -8,7 +8,7 @@ import math
 import pioneer_sdk
 
 from tracker_propagation import TrackerPropagation, TRACKER_STATES
-from PyQt5.QtWidgets import QApplication
+from PySide2.QtWidgets import QApplication
 
 def getarparser():
 

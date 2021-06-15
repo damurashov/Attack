@@ -6,7 +6,7 @@ import numpy as np
 import math
 
 from tracker_propagation import TrackerPropagation, TRACKER_STATES
-from PyQt5.QtWidgets import QApplication
+from PySide2.QtWidgets import QApplication
 
 def getarparser():
 

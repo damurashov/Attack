@@ -4,8 +4,8 @@
 import numpy as np
 import math
 from tracker_propagation import TrackerPropagation, TRACKER_STATES
-from PyQt5.QtCore import QObject
-from PyQt5.QtWidgets import QApplication
+from PySide2.QtCore import QObject
+from PySide2.QtWidgets import QApplication
 import cv2
 import sys
 from args import getarparser

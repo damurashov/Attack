@@ -5,7 +5,7 @@ from controller import AttackStrategyPixels, AttackStrategy, AttackStrategyAngle
 import threading
 import argparse
 from PID import PID
-from PyQt5.QtWidgets import QApplication
+from PySide2.QtWidgets import QApplication
 import keyboard
 import cv2
 import sys

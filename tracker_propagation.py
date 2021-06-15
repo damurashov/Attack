@@ -4,7 +4,7 @@ import numpy as np
 from kalman_filter import  KalmanFilter, chi2inv95
 
 from queue import Queue
-from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread, QObject
+from PySide2.QtCore import Signal, Slot, Qt, QThread, QObject
 
 class TRACKER_STATES(object):
     STATE_TENTATIVE = 1
@@ -20,7 +20,7 @@ TRACKERS = {
 
 class Tracker(QThread):
 
-    frame_processed = pyqtSignal(np.ndarray)
+    frame_processed = Signal(np.ndarray)
 
     def __init__(self, tracker_name, frame, rect, frame_queue):
 
@@ -107,7 +107,7 @@ class TrackerPropagation(QObject):
     def is_deleted(self):
         return self.state == TRACKER_STATES.STATE_DELETED
 
-    @pyqtSlot(dict)
+    @Slot(dict)
     def tracker_update(self, bbox):
         if self.kf.gating_distance(self.mean, self.covariance, self._to_xyah(bbox)) < self.threshold:
             self._update(bbox)
