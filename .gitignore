@@ -1,5 +1,6 @@
 __pycache__
-.idea
 venv
-.idea
+build
+dist
+*.egg-info
 log-*
