@@ -6,6 +6,8 @@ import QtQuick.Layouts 1.15
 import UAVControl 1.0
 
 Window {
+    id: mainWindow
+
     UAVCamera {
         id: uavCamera
     }
@@ -16,6 +18,11 @@ Window {
 
         height: parent.height
         width: (parent.height / 3) * 4
+    }
+
+    Button {
+        text: 'Выход'
+        onClicked: mainWindow.close()
     }
 
     Item {
