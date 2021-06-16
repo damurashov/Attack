@@ -49,7 +49,7 @@ SAMPLE_TIME = None  # "dt" gets updated manually
 
 class Control:
     def __init__(self):
-        self.controller = Control.__instantiate_controller()
+        self.controller: AttackStrategy = Control.__instantiate_controller()
         self.thread_rc_pid = Control.__instantiate_thread_rc(self.controller)
         self.tracker = None
 

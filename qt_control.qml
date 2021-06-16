@@ -18,19 +18,55 @@ Window {
         width: (parent.height / 3) * 4
     }
 
-    Rectangle {
+    Item {
         anchors.left: video.right
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
 
-        ColumnLayout{
+        Button {
+            text: 'Взлёт'
+            onClicked: uavCamera.arm()
+            visible: uavCamera != null && uavCamera.state == UAVCamera.Disarmed
+            anchors.centerIn: parent
+        }
+
+        Text {
+            text: 'Взлёт...'
+            visible: uavCamera != null && uavCamera.state == UAVCamera.Arming
+            anchors.margins: parent.width / 50
+            fontSizeMode: Text.Fit
+            anchors.centerIn: parent
+            font.pointSize: 50
+        }
+
+        Text {
+            text: 'Посадка...'
+            visible: uavCamera != null && uavCamera.state == UAVCamera.Disarming
+            anchors.margins: parent.width / 50
+            fontSizeMode: Text.Fit
+            anchors.centerIn: parent
+            font.pointSize: 50
+        }
+
+        ColumnLayout {
             anchors.fill: parent
-            anchors.margins: parent.width / 10
-            spacing: parent.width / 10
+            anchors.margins: parent.width / 50
+            spacing: parent.width / 50
+            visible: uavCamera != null && uavCamera.state == UAVCamera.Armed
 
             Switch {
                 text: 'Режим слежения'
+            }
+
+            Item {
+                Layout.fillHeight: true
+            }
+
+            Button {
+                text: 'Посадка'
+                Layout.alignment: Qt.AlignHCenter
+                onClicked: uavCamera.disarm()
             }
 
             Item {
@@ -46,10 +82,15 @@ Window {
                     Button {
                         text: 'Выше'
                         Layout.alignment: Qt.AlignHCenter
+                        onPressed: uavCamera.setThrottle(1.0)
+                        onReleased: uavCamera.setThrottle(0.0)
                     }
+
                     Button {
                         text: 'Ниже'
                         Layout.alignment: Qt.AlignHCenter
+                        onPressed: uavCamera.setThrottle(-1.0)
+                        onReleased: uavCamera.setThrottle(0.0)
                     }
                 }
             }
@@ -61,19 +102,34 @@ Window {
                 GridLayout {
                     columns: 3
                     anchors.fill: parent
-                    Layout.alignment: Qt.AlignHCenter
 
                     Button {
                         text: '⟲'
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.minimumWidth: Layout.minimumHeight
+                        onPressed: uavCamera.setYaw(-1.0)
+                        onReleased: uavCamera.setYaw(0.0)
                     }
                     Button {
                         text: '▲'
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.minimumWidth: Layout.minimumHeight
+                        onPressed: uavCamera.setPitch(1.0)
+                        onReleased: uavCamera.setPitch(0.0)
                     }
                     Button {
                         text: '⟳'
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.minimumWidth: Layout.minimumHeight
+                        onPressed: uavCamera.setYaw(1.0)
+                        onReleased: uavCamera.setYaw(0.0)
                     }
                     Button {
                         text: '◀'
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.minimumWidth: Layout.minimumHeight
+                        onPressed: uavCamera.setRoll(-1.0)
+                        onReleased: uavCamera.setRoll(0.0)
                     }
                     Item {
                         Layout.fillWidth: true
@@ -81,6 +137,10 @@ Window {
                     }
                     Button {
                         text: '▶'
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.minimumWidth: Layout.minimumHeight
+                        onPressed: uavCamera.setRoll(1.0)
+                        onReleased: uavCamera.setRoll(0.0)
                     }
                     Item {
                         Layout.fillWidth: true
@@ -88,6 +148,10 @@ Window {
                     }
                     Button {
                         text: '▼'
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.minimumWidth: Layout.minimumHeight
+                        onPressed: uavCamera.setPitch(-1.0)
+                        onReleased: uavCamera.setPitch(0.0)
                     }
                     Item {
                         Layout.fillWidth: true
