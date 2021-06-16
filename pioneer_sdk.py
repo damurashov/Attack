@@ -4,6 +4,30 @@ import socket
 import sys
 import time
 
+from pymavlink.dialects.v20 import common as mavcommon
+mav = mavcommon.MAVLink(None)
+mavlink_socket_udp_raw = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+mavlink_socket_udp_raw.connect(("192.168.4.1", 8001,))
+mavlink_socket_udp_raw.setblocking(0)
+
+
+def send(msg):
+    mavlink_socket_udp_raw.sendto(msg, ("192.168.4.1", 8001,))
+
+
+def msg_arm(arm: bool):
+    msg = mav.command_long_encode(1, 1, mavcommon.MAV_CMD_COMPONENT_ARM_DISARM, 0, int(arm), 0, 0, 0, 0, 0, 0)
+    return msg.pack(mav)
+
+
+def command_arm(arm: bool):
+    send(msg_arm(arm))
+
+
+def send_rc_channels(throttle, yaw, pitch, roll, mode):
+    msg = mav.rc_channels_override_encode(0, 0, throttle, yaw, pitch, roll, mode, 0, 0, 0)
+    send(msg.pack(mav))
+
 
 class Pioneer:
     def __init__(self, pioneer_ip='192.168.4.1', pioneer_video_port=8888, pioneer_video_control_port=8888,
@@ -24,27 +48,12 @@ class Pioneer:
         self.__logger = logger
 
         self.__prev_point_id = None
-
         try:
             self.__video_control_socket.connect(video_control_address)
             self.__video_socket.bind(self.__video_control_socket.getsockname())
-            self.__mavlink_socket = mavutil.mavlink_connection('udpout:%s:%s' % (pioneer_ip, pioneer_mavlink_port))
+            # self.__mavlink_socket = mavutil.mavlink_connection('udpout:%s:%s' % (pioneer_ip, pioneer_mavlink_port), force_connected=True)
         except socket.error:
             print('Can not connect to pioneer. Do you connect to drone wifi?')
-            sys.exit()
-
-        self.__init_heartbeat_event = threading.Event()
-
-        self.__heartbeat_thread = threading.Thread(target=self.__heartbeat_handler,
-                                                   args= (self.__init_heartbeat_event, ))
-        self.__heartbeat_thread.daemon = True
-        self.__heartbeat_thread.start()
-
-        while not self.__init_heartbeat_event.is_set():
-            pass
-
-        while not self.point_reached():
-            pass
 
     def get_raw_video_frame(self):
         try:
@@ -121,6 +130,8 @@ class Pioneer:
             return None
 
     def arm(self):
+        command_arm(True)
+        return
         i = 0
         if self.__logger:
             print('arm command send')
@@ -150,6 +161,9 @@ class Pioneer:
                 i += 1
 
     def disarm(self):
+        command_arm(False)
+        return
+
         i = 0
         if self.__logger:
             print('disarm command send')
@@ -287,7 +301,9 @@ class Pioneer:
         yaw = normalize(-yaw)
         throttle = normalize(throttle)
         mode = mode_convert[int(mode)]
-        self.__mavlink_socket.mav.rc_channels_override_send(self.__mavlink_socket.target_system, self.__mavlink_socket.target_component, throttle, yaw, pitch, roll, mode, 0, 0, 0)
+
+        send_rc_channels(throttle, yaw, pitch, roll, mode)
+        # self.__mavlink_socket.mav.rc_channels_override_send(self.__mavlink_socket.target_system, self.__mavlink_socket.target_component, throttle, yaw, pitch, roll, mode, 0, 0, 0)
 
     def led_control(self, led_id=255, r=0, g=0, b=0):  # 255 all led
         max_value = 255.0
