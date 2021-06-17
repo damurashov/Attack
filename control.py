@@ -51,10 +51,6 @@ class Control:
     def __init__(self):
         self.controller: AttackStrategy = Control.__instantiate_controller()
         self.thread_rc_pid = Control.__instantiate_thread_rc(self.controller)
-        self.tracker = None
-
-        self.sem_engage_routine = threading.Semaphore(1)
-        self.sem_engage_routine.acquire()
 
     @staticmethod
     def __instantiate_thread_rc(controller: AttackStrategy):

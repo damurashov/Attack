@@ -130,7 +130,6 @@ class UAVCamera(QMediaObject):
         handler.finished.connect(self.__armed)
         handler.start()
         self.__set_state(self.State.Arming)
-        # self.__armed()
 
     def __armed(self):
         self.__set_state(self.State.Armed)
@@ -141,7 +140,6 @@ class UAVCamera(QMediaObject):
         handler.finished.connect(self.__disarmed)
         handler.start()
         self.__set_state(self.State.Disarming)
-        # self.__disarmed()
 
     def __disarmed(self):
         self.__set_state(self.State.Disarmed)
@@ -158,6 +156,7 @@ class UAVCamera(QMediaObject):
 
 
 class DeclarativeUAVCamera(QObject):
+
     @QEnum
     class State(Enum):
         Disarmed = UAVCamera.State.Disarmed.value

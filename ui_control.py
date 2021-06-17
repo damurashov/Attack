@@ -15,7 +15,8 @@ N_FRAMES_SKIP = 50  # How many frames will be skipped (necessary for buffer purg
 
 class UiControl(Control):
     def __init__(self):
-        super().__init__()
+        super(Control, self).__init__()
+
         self.tracker = None
         self.__instantiate_key_mappings()
 
