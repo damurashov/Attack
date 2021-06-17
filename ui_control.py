@@ -69,7 +69,7 @@ class UiControl(Control):
                 Camera.visualize_tracking(img, bbox, state, window_name)
 
                 # Process tracking state
-                if state == TRACKER_STATES.STATE_DELETED:
+                if state == TRACKER_STATES.STATE_LOST:
                     self.controller.on_target_lost()
                     debug.FlightLog.add_log_event("tracker lost")
                     cv2.waitKey(0)

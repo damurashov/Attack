@@ -3,14 +3,21 @@ import sys
 from enum import Enum
 
 import PySide2
-from PySide2.QtCore import QObject, Property, Signal, QThread, QCoreApplication, Slot, QEnum
-from PySide2.QtGui import QImage
+import cv2
+import numpy as np
+from PySide2.QtCore import QObject, Property, Signal, QThread, QCoreApplication, Slot, QEnum, QSize, QRect
+from PySide2.QtGui import QImage, qRed, qGreen, qBlue
 from PySide2.QtMultimedia import QMediaObject, QMediaService, QVideoRendererControl, QVideoFrame, QVideoSurfaceFormat, \
-    QAbstractVideoSurface, QMediaControl
+    QAbstractVideoSurface, QMediaControl, QAbstractVideoFilter, QVideoFilterRunnable, QAbstractVideoBuffer
 from PySide2.QtQml import QQmlApplicationEngine, qmlRegisterType
 from PySide2.QtWidgets import QApplication
+
+from args import getarparser
+from camera import VggExtractor, Camera
 from control import Control
+from object_detector import ObjectDetector
 from pioneer_sdk import Pioneer
+from tracker_propagation import TrackerPropagation, TRACKER_STATES
 
 
 class UAVCameraHandler(QThread):
@@ -83,12 +90,17 @@ class UAVCameraService(QMediaService):
     def __new__(cls):
         if not hasattr(cls, 'instance'):
             cls.instance = super(UAVCameraService, cls).__new__(cls)
-            return cls.instance
+
+        return cls.instance
 
     def __init__(self):
+        if UAVCameraService.__initialized is True:
+            return
+
         super(UAVCameraService, self).__init__(None)
         self._control_wrapper: ControlWrapper = ControlWrapper()
         self._video_renderer_control = UAVRendererControl(self, self._control_wrapper.control.controller)
+        UAVCameraService.__initialized = True
 
     def requestControl(self, name: bytes) -> QMediaControl:
         if name == "org.qt-project.qt.videorenderercontrol/5.0":
@@ -97,6 +109,8 @@ class UAVCameraService(QMediaService):
             return self._control_wrapper
 
         return None
+
+    __initialized = False
 
 
 class UAVCamera(QMediaObject):
@@ -200,6 +214,10 @@ class DeclarativeUAVCamera(QObject):
     def disarm(self):
         self._camera.disarm()
 
+    @Slot(bool)
+    def attack(self, value: bool):
+        self.__get_controller().set_rc('mode', 1 if value else 2)
+
     def _media_object(self):
         return self._camera
 
@@ -209,6 +227,172 @@ class DeclarativeUAVCamera(QObject):
     mediaObject = Property(QObject, _media_object, notify=mediaObjectChanged)
     stateChanged = Signal()
     state = Property(int, _state, notify=stateChanged)
+
+class FilterResult(QObject):
+    def __init__(self, rects):
+        super(FilterResult, self).__init__()
+        self._rects = rects
+
+    @Slot(result="QVariantList")
+    def rects(self):
+        return self._rects
+
+
+class DetectorRunnable(QVideoFilterRunnable):
+
+    def __init__(self, video_filter):
+        super(DetectorRunnable, self).__init__()
+        self._video_filter = video_filter
+        self._current_frame_size: QSize = None
+        self._detector: ObjectDetector = None
+        self._opts = getarparser().parse_args()
+        self._result = None
+
+    def run(self, input: QVideoFrame, surfaceFormat: QVideoSurfaceFormat, flags: QVideoFilterRunnable.RunFlags) -> QVideoFrame:
+        if not input.isValid():
+            return input
+
+        if self._current_frame_size != input.size():
+            if self._detector is not None:
+                self._detector.stop()
+
+            del self._detector
+            self._current_frame_size = input.size()
+
+            # Compute ROI and create new detector
+            disply_width = self._current_frame_size.width()
+            display_height = self._current_frame_size.height()
+
+            tracked_width = int(disply_width - .2 * disply_width)
+            tracked_height = int(display_height - .2 * display_height)
+
+            trackable_ROI = np.array([int((disply_width - tracked_width) / 2.),
+                                      int((display_height - tracked_height) / 2.),
+                                      tracked_width,
+                                      tracked_height
+                                      ])
+
+            min_ROI_dim = 35
+            max_ROI_dim = 600
+
+            self._detector = ObjectDetector(trackable_ROI, .2, (min_ROI_dim, max_ROI_dim), self._opts)
+
+        image = input.image()
+
+        if image.isNull():
+            return input
+
+        image: QImage = image.convertToFormat(QImage.Format.Format_RGBA8888)
+        frame = np.array(image.constBits())
+
+        width = image.width()
+        height = image.height()
+
+        frame = frame.reshape((height, width, 4))
+        cv_image: np.ndarray = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)
+        bboxes, identifiers = self._detector.detect(cv_image)
+
+        result = []
+        for x, y, w, h in bboxes:
+            result.append(QRect(x, y, w, h))
+
+        self._result = FilterResult(result)
+        self._video_filter.finished.emit(self._result)
+
+        return input
+
+
+class Detector(QAbstractVideoFilter):
+
+    def __init__(self):
+        super(Detector, self).__init__()
+
+    def createFilterRunnable(self) -> PySide2.QtMultimedia.QVideoFilterRunnable:
+        return DetectorRunnable(self)
+
+    finished = Signal(QObject, arguments=['e'])
+
+
+class EngagerRunnable(QVideoFilterRunnable):
+
+    def __init__(self, video_filter):
+        super(EngagerRunnable, self).__init__()
+        self._video_filter = video_filter
+        self._tracker = None
+        self._result = None
+
+    def run(self, input: QVideoFrame, surfaceFormat: QVideoSurfaceFormat, flags: QVideoFilterRunnable.RunFlags) -> QVideoFrame:
+        video_filter = self._video_filter
+        rect = video_filter.get_rect()
+        if rect is None:
+            return input
+
+        image = input.image()
+        image: QImage = image.convertToFormat(QImage.Format.Format_RGBA8888)
+        frame = np.array(image.constBits())
+
+        width = image.width()
+        height = image.height()
+
+        frame = frame.reshape((height, width, 4))
+        cv_image: np.ndarray = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)
+
+        if self._tracker is None:
+            padding = 1.5
+
+            box = np.array([rect.x(), rect.y(), rect.width(), rect.height()])
+
+            if int(min(box[2:]) / padding) > 35:  # TODO move to constant (min_ROI_dim)
+                x1, y1, w, h = [int(i) for i in box]
+
+                xc = x1 + w / 2
+                yc = y1 + h / 2
+
+                w = w / padding
+                h = h / padding
+
+                x1 = xc - w / 2 - 1
+                y1 = yc - h / 2 - 1
+                box = [x1, y1, w, h]
+
+            self._tracker = TrackerPropagation(cv_image, np.array(box), getarparser().parse_args(), weights=VggExtractor().get_weights())
+            return input
+
+        bbox, state = self._tracker.track(cv_image)
+        if state == TRACKER_STATES.STATE_LOST:
+            self._video_filter.lost.emit()
+            return input
+
+        x, y, w, h = bbox
+        self._result = FilterResult([QRect(x, y, w, h)])
+        self._video_filter.finished.emit(self._result)
+
+        # Calculate and apply control action
+        control: ControlWrapper = UAVCameraService().requestControl('org.plaz.control/5.0')
+        hv_positions = Camera.center_positions(bbox, cv_image, type=getarparser().parse_args().pid_input)
+        control.control.controller.on_target(hv_positions[0], -hv_positions[1])
+
+        return input
+    
+    
+class Engager(QAbstractVideoFilter):
+    
+    def __init__(self):
+        super(Engager, self).__init__()
+        self._rect = None
+
+    def createFilterRunnable(self) -> PySide2.QtMultimedia.QVideoFilterRunnable:
+        return EngagerRunnable(self)
+
+    def get_rect(self):
+        return self._rect
+
+    def set_rect(self, rect: QRect):
+        self._rect = rect
+
+    rect = Property(QRect, get_rect, set_rect)
+    finished = Signal(QObject, arguments=['e'])
+    lost = Signal()
 
 
 if __name__ == "__main__":
@@ -222,6 +406,8 @@ if __name__ == "__main__":
     qml_path = os.path.join(dirname, 'Qt', 'qml')
     engine.addImportPath(qml_path)
     qmlRegisterType(DeclarativeUAVCamera, 'UAVControl', 1, 0, 'UAVCamera')
+    qmlRegisterType(Detector, 'UAVControl', 1, 0, 'Detector')
+    qmlRegisterType(Engager, 'UAVControl', 1, 0, 'Engager')
 
     engine.load("qt_control.qml")
     app.exec_()

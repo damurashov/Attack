@@ -1,104 +1,131 @@
 #!/usr/bin/python3
 
 
-import numpy as np
 import math
-from tracker_propagation import TrackerPropagation, TRACKER_STATES
-from PySide2.QtCore import QObject
-from PySide2.QtWidgets import QApplication
+
 import cv2
-import sys
+import numpy as np
+from torch import nn
+from torchvision import models
+
 from args import getarparser
+from tracker_propagation import TrackerPropagation, TRACKER_STATES
+
+
+class VggExtractor:
+    def __new__(cls):
+        if not hasattr(cls, 'instance'):
+            cls.instance = super(VggExtractor, cls).__new__(cls)
+
+        return cls.instance
+
+    def __init__(self):
+        if VggExtractor.__initialized is True:
+            return
+
+        super(VggExtractor, self).__init__()
+        vgg16 = models.vgg16(pretrained=True)
+        vgg16_features = list(vgg16.features)
+        self._vgg16_features = nn.Sequential(*vgg16_features)
+        VggExtractor.__initialized = True
+
+    def get_weights(self):
+        return self._vgg16_features
+
+    __initialized = False
 
 
 class Camera:
 
-	def __init__(self, get_raw_frame_cb):
-		self.get_raw_frame = get_raw_frame_cb
-		self.tracker = None
-		self.app = QApplication(sys.argv)
+    def __init__(self, get_raw_frame_cb):
+        self.get_raw_frame = get_raw_frame_cb
+        self.tracker = None
 
-	def purge_buffer(self, n_iterations):
-		for _ in range(0, n_iterations):
-			self.get_frame()
+        # Load weights explicitly
+        VggExtractor()
 
-	def init_tracker(self, window_name="Select ROI"):
-		img = self.get_frame()
-		if img is None:
-			return False
+    def purge_buffer(self, n_iterations):
+        for _ in range(0, n_iterations):
+            self.get_frame()
 
-		roi = cv2.selectROI(window_name, img)
-		cv2.waitKey(1)
+    def init_tracker(self, window_name="Select ROI"):
+        img = self.get_frame()
+        if img is None:
+            return False
 
-		self.tracker = TrackerPropagation(img, np.array(roi), getarparser().parse_args())
+        roi = cv2.selectROI(window_name, img)
+        cv2.waitKey(1)
 
-		return True
+        self.tracker = TrackerPropagation(img, np.array(roi), getarparser().parse_args(), weights=VggExtractor().get_weights())
 
-	def track(self, *args, **kwargs):
-		return self.tracker.track(*args, **kwargs)
+        return True
 
-	def get_frame(self):
-		"""
+    def init_tracker_by_detections(self, frame, roi):
+        self.tracker = TrackerPropagation(frame, np.array(roi), getarparser().parse_args(), weights=VggExtractor().get_weights())
+
+    def track(self, *args, **kwargs):
+        return self.tracker.track(*args, **kwargs)
+
+    def get_frame(self):
+        """
 		:return: None, if failed to get one. cv2 frame on success
 		"""
-		try:
-			img = self.get_raw_frame()
-			if img is None:
-				return None
+        try:
+            img = self.get_raw_frame()
+            if img is None:
+                return None
+            img = cv2.imdecode(np.frombuffer(img, dtype=np.uint8), cv2.IMREAD_COLOR)
+            return img
+        except:
+            return None
 
-			img = cv2.imdecode(np.frombuffer(img, dtype=np.uint8), cv2.IMREAD_COLOR)
+    @staticmethod
+    def _center_positions(bbox, frame_sz, fov, normalize=True):
 
-			return img
-		except:
-			return None
+        if not isinstance(bbox, np.ndarray):
+            bbox = np.array(bbox)
+        if not isinstance(frame_sz, np.ndarray):
+            frame_sz = np.array(frame_sz)
+        bbox = bbox.copy()
+        bbox = bbox.astype(np.float64)
+        bbox[:2] += bbox[2:] / 2.
+        dx, dy = bbox[:2]
+        frame_sz = frame_sz.copy()
+        frame_sz = frame_sz.astype(np.float64)
+        frame_sz = frame_sz / 2.
+        cx, cy = frame_sz
+        positions = np.array([dx - cx, dy - cy, dx - cx, dy - cy, ])
+        positions[:2] = positions[:2] * fov
+        if normalize:
+            positions[2:] = np.array([(dx - cx) / frame_sz[0], (dy - cy) / frame_sz[1]])
+            positions[:2] = positions[2:] * math.tanh(fov)
+        return positions
 
-	@staticmethod
-	def _center_positions(bbox, frame_sz, fov, normalize=True):
+    @staticmethod
+    def center_positions(bbox, img, normalize=True, type=None):
+        assert type in ['angles', 'pixels', None]
 
-		if not isinstance(bbox, np.ndarray):
-			bbox = np.array(bbox)
-		if not isinstance(frame_sz, np.ndarray):
-			frame_sz = np.array(frame_sz)
-		bbox = bbox.copy()
-		bbox = bbox.astype(np.float64)
-		bbox[:2] += bbox[2:] / 2.
-		dx, dy = bbox[:2]
-		frame_sz = frame_sz.copy()
-		frame_sz = frame_sz.astype(np.float64)
-		frame_sz = frame_sz / 2.
-		cx, cy = frame_sz
-		positions = np.array([dx - cx, dy - cy, dx - cx, dy - cy, ])
-		positions[:2] = positions[:2] * fov
-		if normalize:
-			positions[2:] = np.array([(dx - cx) / frame_sz[0], (dy - cy) / frame_sz[1]])
-			positions[:2] = positions[2:] * math.tanh(fov)
-		return positions
+        frame_sz = (img.shape[1], img.shape[0])
+        fov = 2. * math.atan2(max(frame_sz), max(frame_sz) * 1.5)
 
-	@staticmethod
-	def center_positions(bbox, img, normalize=True, type=None):
-		assert type in ['angles', 'pixels', None]
+        pos = Camera._center_positions(bbox, frame_sz, fov, normalize)
 
-		frame_sz = (img.shape[1], img.shape[0])
-		fov = 2.*math.atan2(max(frame_sz), max(frame_sz)*1.5)
+        if type == 'angles':
+            return pos[:2]
+        elif type == 'pixels':
+            return pos[2:]
 
-		pos = Camera._center_positions(bbox, frame_sz, fov, normalize)
+        return pos
 
-		if type == 'angles':
-			return pos[:2]
-		elif type == 'pixels':
-			return pos[2:]
+    @staticmethod
+    def visualize_tracking(img, bbox, state, window_name):
+        if state == TRACKER_STATES.STATE_CONFIRMED:
+            x1, y1, w, h = bbox
+            cv2.rectangle(img, (int(x1), int(y1)), (int(x1 + w), int(y1 + h)), (0, 255, 0), 2)
 
-		return pos
+        if state == TRACKER_STATES.STATE_LOST:
+            cv2.putText(img, 'OBJECT LOST', (20, 20), cv2.FONT_HERSHEY_SIMPLEX,
+                        1, (255, 0, 255), 2, cv2.LINE_AA)
 
-	@staticmethod
-	def visualize_tracking(img, bbox, state, window_name):
-		if state == TRACKER_STATES.STATE_CONFIRMED:
-			x1, y1, w, h = bbox
-			cv2.rectangle(img, (int(x1), int(y1)), (int(x1 + w), int(y1 + h)), (0, 255, 0), 2)
-
-		if state == TRACKER_STATES.STATE_DELETED:
-			cv2.putText(img, 'OBJECT LOST', (20, 20), cv2.FONT_HERSHEY_SIMPLEX,
-						1, (255, 0, 255), 2, cv2.LINE_AA)
-
-		cv2.imshow(window_name, img)
-		cv2.waitKey(1)
+        cv2.imshow(window_name, img)
+        cv2.waitKey(1)

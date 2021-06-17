@@ -6,18 +6,100 @@ import QtQuick.Layouts 1.15
 import UAVControl 1.0
 
 Window {
+    property bool engage: false
+
     id: mainWindow
+
+    function resetRects() {
+        for (var i = 0; i < rectHolder.count; ++i) {
+            rectHolder.itemAt(i).visible = false;
+        }
+    }
+
+    function updateRect(rect, ri) {
+        var xr = video.width / video.sourceRect.width;
+        var yr = video.height / video.sourceRect.height;
+
+        rect.x = video.x + ri.x * xr;
+        rect.y = video.y + ri.y * yr;
+        rect.width = ri.width * xr;
+        rect.height = ri.height * yr;
+    }
+
+    onEngageChanged: resetRects()
 
     UAVCamera {
         id: uavCamera
     }
 
+    Detector {
+        id: detector
+
+        onFinished: {
+            var r = e.rects();
+            for (var i = 0; i < rectHolder.count; ++i) {
+                var rect = rectHolder.itemAt(i);
+
+                if (i < r.length) {
+                    updateRect(rect, r[i])
+                    rect.rectangle = r[i]
+                }
+
+                rect.visible = i < r.length
+            }
+        }
+    }
+
+    Engager {
+        id: engager
+
+        onFinished: {
+            var r = e.rects();
+            for (var i = 0; i < r.length; ++i) {
+                updateRect(engageRect, r[i])
+            }
+        }
+
+        onLost: {
+            mainWindow.engage = false
+        }
+    }
+
     VideoOutput {
         id: video
         source: uavCamera
+        filters: trackSwitch != null && trackSwitch.checked ? (mainWindow.engage ? [engager] : [detector]) : []
 
         height: parent.height
         width: (parent.height / 3) * 4
+    }
+
+    Repeater {
+        id: rectHolder
+        model: 20
+        Rectangle {
+            property rect rectangle: null
+            color: "transparent"
+            border.width: 4
+            border.color: "red"
+            visible: false
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {
+                    engager.rect = parent.rectangle
+                    mainWindow.engage = true
+                }
+            }
+        }
+    }
+
+    Rectangle {
+        id: engageRect
+        color: "transparent"
+        border.color: "lawngreen"
+        border.width: 4
+        visible: mainWindow.engage
     }
 
     Button {
@@ -63,7 +145,27 @@ Window {
             visible: uavCamera != null && uavCamera.state == UAVCamera.Armed
 
             Switch {
+                id: trackSwitch
                 text: 'Режим слежения'
+                onCheckedChanged: {
+                    mainWindow.engage = false
+                }
+            }
+
+            Switch {
+                text: 'Атака'
+                onCheckedChanged: {
+                    uavCamera.attack(this.checked)
+                }
+            }
+
+            Button {
+                text: 'Сброс'
+                Layout.alignment: Qt.AlignHCenter
+                visible: mainWindow.engage
+                onClicked: {
+                    mainWindow.engage = false
+                }
             }
 
             Item {

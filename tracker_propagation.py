@@ -1,68 +1,73 @@
 import cv2
 import time
 import numpy as np
-from kalman_filter import  KalmanFilter, chi2inv95
-
 from queue import Queue
-from PySide2.QtCore import Signal, Slot, Qt, QThread, QObject
+
+from PySide2.QtCore import Signal, Slot, QThread, QObject
+from kalman_filter  import  KalmanFilter, chi2inv95
+
+from pytracker import PyTracker
+
+
 
 class TRACKER_STATES(object):
     STATE_TENTATIVE = 1
     STATE_CONFIRMED = 2
-    STATE_DELETED   = 3
-
-TRACKERS = {
-    'csrt':       cv2.TrackerCSRT_create,
-    'kcf':        cv2.TrackerKCF_create,
-    'mil':        cv2.TrackerMIL_create,
-}
+    STATE_LOST      = 3
 
 
 class Tracker(QThread):
 
-    frame_processed = Signal(np.ndarray)
+    frame_processed  = Signal(np.ndarray)
 
-    def __init__(self, tracker_name, frame, rect, frame_queue):
+    def __init__(self, tracker_name, frame, rect, frame_queue, weights=None):
 
         super().__init__()
 
-        self.tracker = TRACKERS[tracker_name]()
-        self.tracker.init(frame, rect)
+        self.tracker = PyTracker(tracker_name, frame, rect, vgg_model=weights)
         self.frame_queue = frame_queue
         self._run_flag = True
 
     def run(self):
 
         while self._run_flag:
-            print('getting frame')
+
             frame = self.frame_queue.get()
 
+
             if frame is None:
-                print('break')
                 break
 
+            try:
+                bbox, frame  = self.tracker.update(frame)
 
-            success, bbox = self.tracker.update(frame)
-            if success:
-                x, y, w, h = bbox
-                self.frame_processed.emit(np.array([x,y,w,h]))
-            print('task finished')
-            #time.sleep(.2)
-            self.frame_queue.task_done()
+                if self.tracker.is_tracked:
+                    x, y, w, h = bbox
+                    bbox = [int(x), int(y), int(w), int(h)]
+                    print('tracker box x: {} y: {} w: {} h: {}'.format(x,y,w,h))
+                    self.frame_processed.emit(np.array(bbox))
+
+                #time.sleep(.2)
+                self.frame_queue.task_done()
+            except:
+                self._run_flag = False
+                self.frame_queue.task_done()
+                print('tracker: error occur')
 
 
     def stop(self):
         self._run_flag = False
-        self.stop()
+        self.terminate()
+        self.wait()
 
 
 
 class TrackerPropagation(QObject):
 
-    def __init__(self, frame, rect, opts, propogate=True):
+    def __init__(self, frame, rect, opts, propogate=True, weights= None):
 
         super().__init__()
-
+        print('46464646')
         self.frame_queue = Queue(1)
         self.kf = KalmanFilter()
         self.threshold = chi2inv95[4]
@@ -75,8 +80,9 @@ class TrackerPropagation(QObject):
         self.state = TRACKER_STATES.STATE_TENTATIVE
         self.propogate = propogate
 
-        self.tracker = Tracker(opts.tracker_name.lower(), frame, rect, self.frame_queue)
+        self.tracker = Tracker(opts.tracker_name, frame, rect, self.frame_queue, weights=weights)
         self.tracker.frame_processed.connect(self.tracker_update)
+        #self.tracker.frame_processed2.connect(self.tracker_update2)
         self.tracker.start()
 
         self._n_init = opts.min_hits
@@ -105,13 +111,22 @@ class TrackerPropagation(QObject):
         return self.state == TRACKER_STATES.STATE_CONFIRMED
 
     def is_deleted(self):
-        return self.state == TRACKER_STATES.STATE_DELETED
+        return self.state == TRACKER_STATES.STATE_LOST
 
-    @Slot(dict)
+    @Slot(np.ndarray)
     def tracker_update(self, bbox):
+        print('update')
+        bbox = np.array(bbox)
         if self.kf.gating_distance(self.mean, self.covariance, self._to_xyah(bbox)) < self.threshold:
             self._update(bbox)
-
+    '''
+    @Slot(float, float, float, float)
+    def tracker_update2(self, x, y, w, h):
+        print('update')
+        bbox = np.array([x, y, w, h])
+        if self.kf.gating_distance(self.mean, self.covariance, self._to_xyah(bbox)) < self.threshold:
+            self._update(bbox)
+    '''
     def _increment_age(self):
         self.age += 1
         self.time_since_update += 1
@@ -132,7 +147,7 @@ class TrackerPropagation(QObject):
 
     def _mark_missed(self):
         if self.time_since_update > self._max_age:
-            self.state = TRACKER_STATES.STATE_DELETED
+            self.state = TRACKER_STATES.STATE_LOST
 
 
     def _to_xyah(self, rect):
