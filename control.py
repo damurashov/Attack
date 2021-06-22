@@ -26,12 +26,12 @@ class ParametersPidAngles:
 
 
 class ParametersPidPixels:
-    P_VERTICAL_PID = 0.3
-    I_VERTICAL_PID = 0.08
+    P_VERTICAL_PID = 0.7
+    I_VERTICAL_PID = 0.03
     D_VERTICAL_PID = 0.0
 
     P_HORIZONTAL_PID = 0.7
-    I_HORIZONTAL_PID = 0.06
+    I_HORIZONTAL_PID = 0.03
     D_HORIZONTAL_PID = 0.0
 
     DELTA_ENGAGE_THRESHOLD_PRELIMINARY = 0.04

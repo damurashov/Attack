@@ -4,6 +4,7 @@ import time
 import math
 from threedvector import Vector
 import debug
+import threading
 
 
 def clamp(val, min_value, max_value):
@@ -57,13 +58,18 @@ class RcWrapper(pioneer_sdk.Pioneer):
 
 class AttackStrategy(RcWrapper):
 
+	class Mode:
+		SEARCH = 0
+		ENGAGE = 1
+
 	def __init__(self, pid_vertical: PID,
 		pid_horizontal: PID,
 		delta_threshold_preliminary=0.0,
 		delta_threshold_clean=0.0,
 		control_horizontal_range=(-1.0, 1.0,),
 		control_vertical_range=(-1.0, 1.0),
-		n_iterations_control_lag=0):
+		n_iterations_control_lag=0,
+		reset_control_timeout_seconds=1.0):
 		"""
 		@param pid_vertical:  -  vertical PID, expected to be pre-initialized
 		@param pid_horizontal:  -  horizontal PID, expected to be pre-initialized
@@ -90,20 +96,35 @@ class AttackStrategy(RcWrapper):
 		self.control_horizontal_range = control_horizontal_range
 		self.control_vertical_range = control_vertical_range
 
+		self.reset_control_timeout_seconds = reset_control_timeout_seconds
+		self._timer = None
+
+		self.mode = AttackStrategy.Mode.SEARCH
+
 		debug.FlightLog.add_log_event(f'initializing controller, '
 			f'control_horizontal_range: {self.control_horizontal_range}, '
 			f'control_vertical_range: {self.control_vertical_range}')
+
+	def _timer_start(self):
+		self._stop_timer()
+		self._timer = threading.Timer(self.reset_control_timeout_seconds, self.on_target)
+
+	def _timer_stop(self):
+		if self._timer is not None:
+			self._timer.cancel()
 
 	def reset_pid(self):
 		self.last_offset_horizontal = None
 		self.last_offset_vertical = None
 		self.target_lost = None
 		self.n_iterations_control_lag_left = self.n_iterations_control_lag
+		self.mode = AttackStrategy.Mode.SEARCH
 
 	def engage(self):
 		self.reset_rc()
 		# self.set_rc('mode', 1)  # Copter is more agile in ALTHOLD mode, we should use this advantage
 		self.set_rc('pitch', 0.5)
+		self.mode = AttackStrategy.Mode.ENGAGE
 
 	def should_engage(self):
 		"""
@@ -124,6 +145,8 @@ class AttackStrategy(RcWrapper):
 		raise NotImplemented
 
 	def on_target(self, offset_horizontal, offset_vertical):
+		self._timer_stop()
+
 		# Update the values
 		self.last_offset_horizontal = offset_horizontal
 		self.last_offset_vertical = offset_vertical
@@ -146,8 +169,14 @@ class AttackStrategy(RcWrapper):
 		self.set_rc("throttle", y_control)
 		self.set_rc("yaw", x_control)
 
+		if self.mode == AttackStrategy.Mode.SEARCH:
+			self._timer_start()
+
 	def on_target_lost(self):
 		self.target_lost = True
+
+		if self.mode == AttackStrategy.Mode.ENGAGE:
+			return
 
 		if self.should_engage():
 			debug.FlightLog.add_log_event("controller -- engaging (target lost)")
