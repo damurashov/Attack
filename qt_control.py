@@ -272,10 +272,10 @@ class DetectorRunnable(QVideoFilterRunnable):
                                       tracked_height
                                       ])
 
-            min_ROI_dim = 35
+            min_ROI_dim = 5
             max_ROI_dim = 600
 
-            self._detector = ObjectDetector(trackable_ROI, .2, (min_ROI_dim, max_ROI_dim), self._opts)
+            self._detector = ObjectDetector(trackable_ROI, .01, (min_ROI_dim, max_ROI_dim), self._opts)
 
         image = input.image()
 
@@ -338,7 +338,7 @@ class EngagerRunnable(QVideoFilterRunnable):
         cv_image: np.ndarray = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)
 
         if self._tracker is None:
-            padding = 2.5
+            padding = 1.5
 
             box = np.array([rect.x(), rect.y(), rect.width(), rect.height()])
 

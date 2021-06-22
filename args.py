@@ -42,7 +42,7 @@ def getarparser():
 
 	parser.add_argument('--min_hits', type=int,  default=3,  help='minimum hits before state tracker will be CONFIRMED')
 	parser.add_argument('--max_age',  type=int,  default=5, help='maximum predictes without updates')
-	parser.add_argument('--tracker_name', type=str, default='KCF-CV', choices=['SAMF',
+	parser.add_argument('--tracker_name', type=str, default='DroTracker', choices=['SAMF',
 																			   'BACF', 'MKCFup', 'LDES', 'Staple',
 																			   'DroTracker', 'SAMF', 'Staple-CA'])
 	parser.add_argument('--pid_input', type=str, default='pixels', choices=['pixels', 'angles'])
