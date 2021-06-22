@@ -338,7 +338,7 @@ class EngagerRunnable(QVideoFilterRunnable):
         cv_image: np.ndarray = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)
 
         if self._tracker is None:
-            padding = 1.5
+            padding = 2.5
 
             box = np.array([rect.x(), rect.y(), rect.width(), rect.height()])
 
@@ -359,7 +359,11 @@ class EngagerRunnable(QVideoFilterRunnable):
             return input
 
         bbox, state = self._tracker.track(cv_image)
+
+        control: ControlWrapper = UAVCameraService().requestControl('org.plaz.control/5.0')
+
         if state == TRACKER_STATES.STATE_LOST:
+            control.control.controller.on_target_lost()
             self._video_filter.lost.emit()
             return input
 
@@ -368,7 +372,7 @@ class EngagerRunnable(QVideoFilterRunnable):
         self._video_filter.finished.emit(self._result)
 
         # Calculate and apply control action
-        control: ControlWrapper = UAVCameraService().requestControl('org.plaz.control/5.0')
+
         hv_positions = Camera.center_positions(bbox, cv_image, type=getarparser().parse_args().pid_input)
         control.control.controller.on_target(hv_positions[0], -hv_positions[1])
 

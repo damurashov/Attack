@@ -37,8 +37,8 @@ class ParametersPidPixels:
     DELTA_ENGAGE_THRESHOLD_PRELIMINARY = 0.04
     DELTA_ENGAGE_THRESHOLD_CLEAN = 0.02
 
-    CONTROL_VERTICAL_RANGE = (-0.7, 0.7,)
-    CONTROL_HORIZONTAL_RANGE = (-0.5, 0.5,)
+    CONTROL_VERTICAL_RANGE = (-0.2, 0.2,)
+    CONTROL_HORIZONTAL_RANGE = (-0.2, 0.2,)
 
     # Number of iterations the controller will wait skip before it starts imposing a control action
     N_ITERATIONS_CONTROL_LAG = 3

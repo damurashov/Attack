@@ -17,13 +17,14 @@ setup(
         'scipy>=1.6.3',
         'matplotlib>=3.4.2',
         'keyboard>=0.13.5',
-        'yolov5>=5.0.5',
         'torchvision==0.9.0',
         'pillow',
         'vizer',
         'edict',
         'easydict',
         'mxnet',
-        'scikit-image'
+        'scikit-image',
+        'numpy<1.17.0,>=1.8.2 '
     ]
+
 )

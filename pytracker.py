@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 #import sys
 #sys.path.insert(1, './DroTrack')
-
+'''
 from lib.utils import get_img_list,get_ground_truthes,APCE,PSR
 from cftracker.mosse import MOSSE
 from cftracker.csk import CSK
@@ -22,12 +22,12 @@ from cftracker.mccth_staple import MCCTHStaple
 from lib.eco.config import otb_deep_config,otb_hc_config
 from cftracker.config import staple_config,ldes_config,dsst_config,csrdcf_config,mkcf_up_config,mccth_staple_config
 from DroTrack.models.DroTrack import DroTrack
-
+'''
 
 class PyTracker:
 
     def __init__(self, tracker_type, init_frame, init_roi, min_score=.21, vgg_model=None):
-
+        '''
         if tracker_type == 'MOSSE':
             self.tracker=MOSSE()
         elif tracker_type=='CSK':
@@ -76,7 +76,8 @@ class PyTracker:
             self.tracker=STRCF()
         elif tracker_type=='MCCTH-Staple':
             self.tracker=MCCTHStaple(config=mccth_staple_config.MCCTHOTBConfig())
-        elif tracker_type=='CSRT-CV':
+        '''
+        if tracker_type=='CSRT-CV':
             self.tracker=cv2.TrackerCSRT_create()
         elif tracker_type=='KCF-CV':
             self.tracker=cv2.TrackerKCF_create()
@@ -94,10 +95,10 @@ class PyTracker:
             or self.tracker_name == 'MIL-CV':
             x, y, w, h = init_roi
             self.tracker.init(init_frame, [int(x), int(y), int(w), int(h)])
-        elif tracker_type != 'DroTracker':
-            self.tracker.init(init_frame, init_roi)
-        else:
-            self.tracker = DroTrack(init_frame, init_roi, vgg16_features=vgg_model)
+        #elif tracker_type != 'DroTracker':
+        #    self.tracker.init(init_frame, init_roi)
+        #else:
+        #    self.tracker = DroTrack(init_frame, init_roi, vgg16_features=vgg_model)
 
     def update(self, frame, verbose=False):
 
@@ -106,7 +107,7 @@ class PyTracker:
                 success, bbox = self.tracker.update(frame)
                 self.is_tracked = success
                 return bbox, frame
-
+        '''
         elif self.tracker_name == 'DroTracker':
             bbox, center, exitime = self.tracker.track(frame)
 
@@ -178,6 +179,6 @@ class PyTracker:
                         1, (0, 244, 0), 2, cv2.LINE_AA)
             print('-------------------tracked----done-----------------')
             return bbox, debug_frame
-
+        '''
 
 
