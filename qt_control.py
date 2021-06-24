@@ -18,6 +18,7 @@ from control import Control
 from object_detector import ObjectDetector
 from pioneer_sdk import Pioneer
 from tracker_propagation import TrackerPropagation, TRACKER_STATES
+import debug
 
 
 class UAVCameraHandler(QThread):
@@ -275,6 +276,7 @@ class DetectorRunnable(QVideoFilterRunnable):
             min_ROI_dim = 5
             max_ROI_dim = 600
 
+            debug.FlightLog.add_log_event(f"qt_control.py, run(), min_ROI_dim / max_ROI_dim: {min_ROI_dim} / {max_ROI_dim}")
             self._detector = ObjectDetector(trackable_ROI, .01, (min_ROI_dim, max_ROI_dim), self._opts)
 
         image = input.image()
@@ -339,6 +341,7 @@ class EngagerRunnable(QVideoFilterRunnable):
 
         if self._tracker is None:
             padding = 1.5
+            debug.FlightLog.add_log_event(f"qt_control, run(), padding: {padding}")
 
             box = np.array([rect.x(), rect.y(), rect.width(), rect.height()])
 
