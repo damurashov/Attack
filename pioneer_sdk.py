@@ -5,6 +5,25 @@ import sys
 import time
 
 
+class TimedCounter:
+	"""
+	Ensures a given minimum period between ticks
+	"""
+	def __init__(self, timeout_seconds):
+		self.timeout = timeout_seconds
+		self.last_tick = None
+
+	def tick(self):
+		now = time.time()
+
+		if self.last_tick is None:
+			self.last_tick = now
+		elif now - self.last_tick > self.timeout:
+			self.last_tick = now
+
+		return self.last_tick == now
+
+
 class Pioneer:
 	def __init__(self, pioneer_ip='192.168.4.1', pioneer_video_port=8888, pioneer_video_control_port=8888,
 				 pioneer_mavlink_port=8001, logger=True):
@@ -29,6 +48,8 @@ class Pioneer:
 			"ATTITUDE": None,
 			"ATTITUDE_QUATERNION": None,
 		}
+		self.__sem_telemetry = threading.Semaphore(1)
+		self.__sem_telemetry.acquire()
 
 		try:
 			self.__video_control_socket.connect(video_control_address)
@@ -60,6 +81,7 @@ class Pioneer:
 				if beginning != -1 and end != -1 and end > beginning:
 					self.__raw_video_frame = self.__video_frame_buffer[beginning:end + 2]
 					self.__video_frame_buffer = self.__video_frame_buffer[end + 2:]
+					self.__sem_telemetry.acquire()
 					break
 				else:
 					print(len(self.__raw_video_frame))
@@ -83,7 +105,8 @@ class Pioneer:
 
 	def __receive_telemetry(self):
 		for k in self.__telemetry.keys():
-			self.__telemetry[k] = self.__mavlink_socket.recv_match(type=k, blocking=True, timeout=0.09)
+			self.__telemetry[k] = self.__mavlink_socket.recv_match(type=k, blocking=True, timeout=False)
+		self.__sem_telemetry.release()
 
 	@property
 	def quaternion(self):
@@ -103,13 +126,14 @@ class Pioneer:
 		return None
 
 	def __heartbeat_handler(self, event):
+		timed_counter_heartbeat = TimedCounter(1)
 		while True:
-			self.__send_heartbeat()
-			self.__receive_heartbeat()
+			if timed_counter_heartbeat.tick():
+				self.__send_heartbeat()
+				self.__receive_heartbeat()
 			self.__receive_telemetry()
 			if not event.is_set():
 				event.set()
-			# time.sleep(self.__heartbeat_send_delay)
 
 	def __get_ack(self):
 		command_ack = self.__mavlink_socket.recv_match(type='COMMAND_ACK', blocking=True,
