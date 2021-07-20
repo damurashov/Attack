@@ -30,22 +30,22 @@ venv:
 
 # Run entry point
 run: clean
-	$(PYTHON3) ./qt_control.py
+	python ./qt_control.py
 
 # Plot a time / engage status chart (for debugging purposes)
 plot_engage:
-	$(PYTHON3) /plot_log.py ./log-engage-* &
+	python3 /plot_log.py ./log-engage-* &
 .PHONY: plot_engage
 
 # Plot a time / rc status chart
 plot_rc:
-	$(PYTHON3) ./plot_log.py ./log-rc-* &
+	python3 ./plot_log.py ./log-rc-* &
 .PHONY: plot_rc
 
 # Plot a time / visual threshold status. The visual threshold denotes an 
 # "edge" value. Once it's been crossed, the UAV is clear to engage
 plot_threshold:
-	$(PYTHON3) ./plot_log.py ./log-threshold-* &
+	python3 ./plot_log.py ./log-threshold-* &
 .PHONY: plot_threshold
 
 clean:
