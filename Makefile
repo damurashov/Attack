@@ -8,33 +8,43 @@ endif
 PYTHON3_VENV := $(abspath ./venv/bin/python3)
 PIP3_VENV := $(abspath ./venv/bin/pip3)
 
-venv:
-	#rm -rf ./venv
+define DEPS
+The following dependencies must be satisfied:
+	---
+	- python 3.7 or newer, and complementary tools
+	  on ubuntu, run sudo apt update && sudo apt install python3.7*,
+	  or check Python\'s official site: https://www.python.org/downloads/
+	- nvidia cuda toolkit
+	  run sudo apt install nvidia-cuda-toolkit on ubuntu,
+	  or check out NVidia\'s official site: https://developer.nvidia.com/cuda-toolkit
+	  and get the option that suits you
+	- Cygwin (on Windows): https://cygwin.com/install.html
+	- You will also need a C++ compiler to be used by Cython
+endef
+export DEPS
 
+venv:
+	@echo "$$DEPS"
+
+	#----------------------------------------
 	# Create venv
+	#----------------------------------------
 	$(PYTHON3) -m venv ./venv
 
+	#----------------------------------------
 	# Install dependencies
+	#----------------------------------------
 	cat requirements.txt | xargs -n 1 $(PIP3_VENV) install
 
+	#----------------------------------------
 	# Following the instructions from https://github.com/StrangerZhang/pyECO, 
+	#----------------------------------------
 	-cd ./lib/eco/features && $(PYTHON3_VENV) ./setup.py build --inplace
 
+	#----------------------------------------
 	# Following the instructions from https://github.com/fengyang95/pyCFTrackers
+	#----------------------------------------
 	-cd ./lib/pysot/utils && $(PYTHON3_VENV) ./setup.py build_ext --inplace
-
-
-	@echo "The following dependencies must be satisfied:"
-	@echo "---"
-	@echo "- python 3.7 or newer, and complementary tools"
-	@echo "  on ubuntu, run sudo apt update && sudo apt install python3.7*,"
-	@echo "  or check Python\'s official site: https://www.python.org/downloads/"
-	@echo "- nvidia cuda toolkit"
-	@echo "  run sudo apt install nvidia-cuda-toolkit on ubuntu,"
-	@echo "  or check out NVidia\'s official site: https://developer.nvidia.com/cuda-toolkit"
-	@echo "  and get the option that suits you"
-	@echo "- Cygwin (on Windows): https://cygwin.com/install.html"
-	@echo "- You will also need a C++ compiler to be used by Cython"
 .PHONY: venv
 
 # Run entry point
