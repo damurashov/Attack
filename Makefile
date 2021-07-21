@@ -7,9 +7,10 @@ endif
 
 PYTHON3_VENV := $(abspath ./venv/bin/python3)
 PIP3_VENV := $(abspath ./venv/bin/pip3)
-
 define DEPS
+----------------------------------------
 The following dependencies must be satisfied:
+----------------------------------------
 	---
 	- python 3.7 or newer, and complementary tools
 	  on ubuntu, run sudo apt update && sudo apt install python3.7*,
@@ -27,12 +28,12 @@ venv:
 	@echo "$$DEPS"
 
 	#----------------------------------------
-	# Create venv
+	# Creating venv
 	#----------------------------------------
 	$(PYTHON3) -m venv ./venv
 
 	#----------------------------------------
-	# Install dependencies
+	# Installing dependencies
 	#----------------------------------------
 	cat requirements.txt | xargs -n 1 $(PIP3_VENV) install
 
