@@ -32,11 +32,14 @@ venv:
 	#----------------------------------------
 	$(PYTHON3) -m venv ./venv
 
+requirements: venv
 	#----------------------------------------
 	# Installing dependencies
 	#----------------------------------------
 	cat requirements.txt | xargs -n 1 $(PIP3_VENV) install
+.PHONY: requirements
 
+deps_compile: venv
 	#----------------------------------------
 	# Following the instructions from https://github.com/StrangerZhang/pyECO, 
 	#----------------------------------------
@@ -46,7 +49,10 @@ venv:
 	# Following the instructions from https://github.com/fengyang95/pyCFTrackers
 	#----------------------------------------
 	-cd ./lib/pysot/utils && $(PYTHON3_VENV) ./setup.py build_ext --inplace
-.PHONY: venv
+.PHONY: deps_compile
+
+deploy: requirements deps_compile
+.PHONY: deploy
 
 # Run entry point
 run: clean
