@@ -113,36 +113,13 @@ Window {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
 
-        Button {
-            text: 'Взлёт'
-            onClicked: uavCamera.arm()
-            visible: uavCamera != null && uavCamera.state == UAVCamera.Disarmed
-            anchors.centerIn: parent
-        }
 
-        Text {
-            text: 'Взлёт...'
-            visible: uavCamera != null && uavCamera.state == UAVCamera.Arming
-            anchors.margins: parent.width / 50
-            fontSizeMode: Text.Fit
-            anchors.centerIn: parent
-            font.pointSize: 50
-        }
-
-        Text {
-            text: 'Посадка...'
-            visible: uavCamera != null && uavCamera.state == UAVCamera.Disarming
-            anchors.margins: parent.width / 50
-            fontSizeMode: Text.Fit
-            anchors.centerIn: parent
-            font.pointSize: 50
-        }
 
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: parent.width / 50
             spacing: parent.width / 50
-            visible: uavCamera != null && uavCamera.state == UAVCamera.Armed
+            visible: uavCamera != null
 
             Switch {
                 id: trackSwitch
@@ -170,6 +147,13 @@ Window {
 
             Item {
                 Layout.fillHeight: true
+            }
+
+            Button {
+                text: 'Взлёт'
+                onClicked: uavCamera.arm()
+                visible: uavCamera != null
+                anchors.centerIn: parent
             }
 
             Button {
