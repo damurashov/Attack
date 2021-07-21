@@ -140,7 +140,6 @@ class UAVCamera(QMediaObject):
         return self.control_wrapper.control.controller
 
     def arm(self):
-        assert self._state == self.State.Disarmed
         handler = self.StateChangeHandler(self, self.__get_controller().arm)
         handler.finished.connect(self.__armed)
         handler.start()
@@ -150,7 +149,6 @@ class UAVCamera(QMediaObject):
         self.__set_state(self.State.Armed)
 
     def disarm(self):
-        assert self._state == self.State.Armed
         handler = self.StateChangeHandler(self, self.__get_controller().disarm)
         handler.finished.connect(self.__disarmed)
         handler.start()
